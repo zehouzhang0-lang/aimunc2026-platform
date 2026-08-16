@@ -1,6 +1,6 @@
 # Security Notice
 
-This repository is a privacy-scrubbed portfolio snapshot of a first full-stack project. It is not a production-ready deployment template.
+This repository is a privacy-scrubbed portfolio snapshot of a first full-stack project. It is not a production-ready deployment template or a mirror of the society-controlled environment used after handoff.
 
 ## Data policy
 
@@ -20,7 +20,7 @@ Do not deploy this snapshot to accept real registrations without a complete secu
 
 ## Historical credential warning
 
-The source package used to reconstruct this repository contained database and JWT secrets. They are not present in this Git history. If those values were ever used outside local development, they must be rotated in the original environment.
+The source package used to reconstruct this repository contained database and JWT secrets. They are not present in this Git history. If those values were ever used outside local development, the current environment operator must rotate them. The developer no longer controls post-handover deployment, monitoring, backups, incident response, or credential rotation.
 
 ## Reporting
 

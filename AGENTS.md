@@ -5,8 +5,11 @@ These rules apply to Codex, Claude Code, and any other agent working in this rep
 ## Evidence and claims
 
 - Read `README.md` and `docs/evidence-and-claims.md` before editing public-facing text.
-- Do not claim 200+ real users unless the owner supplies a privacy-safe, verifiable aggregate.
-- Do not turn the 250–300 design capacity into actual usage.
+- Treat 250–300 as design capacity and 237 delegates as owner-confirmed actual usage; do not merge the two metrics.
+- Until privacy-safe aggregate evidence is added, label 237 as owner-confirmed rather than independently verified.
+- Do not infer accounts, completed applications, concurrency, performance, satisfaction, or retention from the 237-delegate figure.
+- Treat RMB 1,500 as an owner-confirmed one-time paid delivery amount pending redacted proof; do not call it recurring revenue, profit, valuation, or an intellectual-property transfer.
+- Attribute product development, pre-handover testing, initial deployment, and technical handoff to the developer. Attribute post-handover launch decisions, production data operations, and ongoing maintenance to the society.
 - Describe the system as multi-role data linkage, not WebSocket real-time synchronization.
 - Describe Claude as an AI-assisted development tool; this version has no product Agent capability.
 - Keep completed work, user statements, unverified claims, and future plans visibly separate.

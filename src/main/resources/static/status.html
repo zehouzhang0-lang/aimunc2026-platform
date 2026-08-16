@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的报名状态 · AIMUNC 2026</title>
+    <!-- ▼▼▼ 主题初始化：必须在所有 CSS 之前同步执行，消除主题闪烁 ▼▼▼ -->
+    <script>
+        (function(){try{
+            var t=localStorage.getItem('aimunc_theme');
+            if(t!=='light'&&t!=='dark'){t=localStorage.getItem('mun_theme');}
+            if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}
+        }catch(e){}}());
+    </script>
+    <!-- ▲▲▲ 主题初始化结束 ▲▲▲ -->
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="aimunc-theme.css">
+    <!-- 【#040 Task 7 · Step A】Three.js CDN — Chen-Lee 背景板依赖 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        /* ── aimunc-theme.css 桥接 ── */
+        :root {
+            --bg:     #08091a;
+            --bg2:    #0d1030;
+            --panel:  rgba(255,255,255,0.04);
+            --border: rgba(255,255,255,0.08);
+            --blue:   #00d2ff;
+            --gold:   #ffd166;
+            --green:  #06d6a0;
+            --red:    #ef476f;
+            --purple: #a29bfe;
+            --text:   #dde1f0;
+            --muted:  #6b7280;
+            --mono:   'Space Mono', monospace;
+            --sans:   'Noto Sans SC', sans-serif;
+        }
+
+        /* 浅色主题 */
+        [data-theme="light"] {
+            --bg:     #f0f4f8;
+            --bg2:    #ffffff;
+            --panel:  rgba(0,0,0,0.02);
+            --border: rgba(0,40,120,0.12);
+            --blue:   #0066ff;
+            --gold:   #b07d00;
+            --green:  #009f78;
+            --red:    #c0293c;
+            --purple: #5856d6;
+            --text:   #0d1f4a;
+            --muted:  #6b7280;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg-primary, var(--bg));
+            color: var(--text, #dde1f0);
+            font-family: var(--sans);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 40px 16px 60px;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* ── 顶部导航 ── */
+        .topbar {
+            width: 100%; max-width: 640px;
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 36px;
+            position: relative; z-index: 2;
+        }
+        .topbar-brand {
+            font-family: var(--mono); font-size: 0.72rem;
+            letter-spacing: 0.12em; color: var(--blue);
+            text-transform: uppercase;
+        }
+        .topbar-brand span { color: var(--gold); }
+        .btn-back {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--muted); font-size: 0.76rem;
+            border-radius: 6px; padding: 6px 14px;
+            cursor: pointer; transition: all .2s;
+            text-decoration: none; font-family: var(--sans);
+        }
+        .btn-back:hover { border-color: var(--blue); color: var(--blue); }
+
+        /* ── 主卡片 ── */
+        .card {
+            width: 100%; max-width: 640px;
+            background: var(--bg2);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+            position: relative; z-index: 2;
+            backdrop-filter: blur(var(--card-blur, 16px));
+            -webkit-backdrop-filter: blur(var(--card-blur, 16px));
+        }
+        .card-header {
+            padding: 24px 28px 20px;
+            border-bottom: 1px solid var(--border);
+            background: rgba(0,210,255,0.04);
+        }
+        [data-theme="light"] .card-header {
+            background: rgba(0,102,255,0.03);
+        }
+        .card-title {
+            font-family: var(--mono); font-size: 0.65rem;
+            letter-spacing: 0.14em; text-transform: uppercase;
+            color: var(--muted); margin-bottom: 6px;
+        }
+        .delegate-name {
+            font-size: 1.3rem; font-weight: 700; color: var(--text);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .role-chip {
+            font-family: var(--mono); font-size: 0.6rem;
+            padding: 2px 8px; border-radius: 3px;
+            letter-spacing: 0.06em;
+        }
+        .role-team  { background: rgba(0,210,255,0.12); border: 1px solid rgba(0,210,255,0.3); color: var(--blue); }
+        .role-solo  { background: rgba(162,155,254,0.12); border: 1px solid rgba(162,155,254,0.3); color: var(--purple); }
+        .card-body { padding: 28px; }
+
+        /* ── 状态进度轴 ── */
+        .timeline { display: flex; flex-direction: column; gap: 0; }
+        .step {
+            display: flex; align-items: flex-start; gap: 16px;
+            padding-bottom: 28px; position: relative;
+        }
+        .step:last-child { padding-bottom: 0; }
+        .step:not(:last-child)::before {
+            content: '';
+            position: absolute;
+            left: 15px; top: 32px;
+            width: 2px; height: calc(100% - 8px);
+            background: var(--border);
+        }
+        .step.done:not(:last-child)::before { background: rgba(6,214,160,0.4); }
+        .step.active:not(:last-child)::before { background: rgba(255,209,102,0.3); }
+
+        .step-dot {
+            width: 32px; height: 32px; border-radius: 50%;
+            border: 2px solid var(--border);
+            background: var(--bg);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.85rem; flex-shrink: 0; z-index: 1;
+            transition: all .3s;
+        }
+        .step.done   .step-dot { background: rgba(6,214,160,0.15); border-color: var(--green); }
+        .step.active .step-dot { background: rgba(255,209,102,0.15); border-color: var(--gold); box-shadow: 0 0 10px rgba(255,209,102,0.3); }
+        .step.skipped .step-dot { opacity: 0.35; }
+
+        .step-content { flex: 1; padding-top: 4px; }
+        .step-label { font-size: 0.85rem; font-weight: 600; line-height: 1.3; }
+        .step.done   .step-label { color: var(--green); }
+        .step.active .step-label { color: var(--gold); }
+        .step.pending .step-label { color: var(--muted); }
+        .step.skipped .step-label { color: var(--muted); opacity: 0.4; }
+        .step-sub { font-size: 0.72rem; color: var(--muted); margin-top: 3px; line-height: 1.5; }
+
+        /* ── 录取结果卡 ── */
+        .result-card {
+            margin-top: 28px;
+            background: rgba(6,214,160,0.06);
+            border: 1px solid rgba(6,214,160,0.25);
+            border-radius: 14px;
+            padding: 20px 24px;
+        }
+        .result-label {
+            font-family: var(--mono); font-size: 0.6rem;
+            letter-spacing: 0.14em; text-transform: uppercase;
+            color: var(--muted); margin-bottom: 8px;
+        }
+        .result-committee {
+            font-size: 1.2rem; font-weight: 700;
+            color: var(--green);
+            display: flex; align-items: center; gap: 8px;
+        }
+        .result-pending { font-size: 0.85rem; color: var(--muted); font-style: italic; }
+
+        /* ── 加载 / 错误 ── */
+        .center-state { padding: 60px 20px; text-align: center; color: var(--muted); font-size: 0.82rem; }
+        .spinner {
+            width: 28px; height: 28px;
+            border: 2px solid var(--border); border-top-color: var(--blue);
+            border-radius: 50%; animation: spin .8s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .btn-refresh {
+            margin-top: 24px; display: block; width: 100%;
+            background: transparent; border: 1px solid var(--border);
+            color: var(--muted); border-radius: 8px; padding: 10px;
+            font-size: 0.78rem; cursor: pointer; transition: all .2s;
+            font-family: var(--sans);
+        }
+        .btn-refresh:hover { border-color: var(--blue); color: var(--blue); }
+
+        /* ── 付款凭证状态指示器 ── */
+        .payment-indicator {
+            display: flex; align-items: center; gap: 12px;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px 18px;
+            margin-bottom: 24px;
+        }
+        [data-theme="light"] .payment-indicator { background: rgba(0,0,0,0.02); }
+        .pay-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; }
+        .pay-dot-none    { background: var(--muted);  box-shadow: none; }
+        .pay-dot-pending { background: var(--gold);   box-shadow: 0 0 8px rgba(255,209,102,0.5); }
+        .pay-dot-ok      { background: var(--green);  box-shadow: 0 0 8px rgba(6,214,160,0.5); }
+        .pay-indicator-text { flex: 1; font-size: 0.82rem; }
+        .pay-indicator-label {
+            font-size: 0.6rem; letter-spacing: 0.1em;
+            text-transform: uppercase; color: var(--muted);
+            font-family: var(--mono); margin-bottom: 3px;
+        }
+        .btn-pay-link { font-size: 0.72rem; color: var(--blue); text-decoration: none; white-space: nowrap; }
+        .btn-pay-link:hover { text-decoration: underline; }
+
+        /* ── 移动端响应式 ── */
+        @media (max-width: 767px) {
+            body { padding: 20px 12px 40px; }
+            .topbar { margin-bottom: 20px; }
+            .card-header { padding: 20px 20px 16px; }
+            .card-body { padding: 20px; }
+            .delegate-name { font-size: 1.1rem; }
+        }
+
+        /* ── 주제 切换按钮：固定左下角，与 dashboard/create_delegation 统一 ── */
+        #aimunc-theme-toggle {
+            position: fixed !important;
+            bottom: 24px !important;
+            left: 24px !important;
+            right: auto !important;
+            top: auto !important;
+            z-index: 9999 !important;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 【#040 Task 7 · Step B】背景层 -->
+<div class="aimunc-bg"></div>
+<div class="aimunc-bg-chenlee" id="chenlee-bg" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;"></div>
+
+<div class="topbar">
+    <div class="topbar-brand">AIMUNC <span>2026</span> &nbsp;·&nbsp; 报名状态</div>
+    <a href="index.html" class="btn-back">← 返回首页</a>
+</div>
+
+<div class="card" id="mainCard">
+    <div class="center-state">
+        <div class="spinner"></div>
+        正在加载您的报名信息…
+    </div>
+</div>
+
+<script>
+    // 会场 Key → 中文名
+    const COMMITTEE_ZH = {
+        'linked-system':         '联动系统',
+        'linked-system-mpc':     '联动系统（MPC）',
+        'chinese-committee':     '联大三委',
+        'chinese-committee-mpc': '联大三委（MPC）',
+        'icj':                   '国际法庭',
+        'icj-mpc':               '国际法庭（MPC）',
+        'english-committee':     '英文常委',
+        'english-committee-mpc': '英文常委（MPC）',
+    };
+
+    function esc(s) {
+        return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    async function loadStatus() {
+        const userId = sessionStorage.getItem('mun_user_id');
+        if (!userId) {
+            document.getElementById('mainCard').innerHTML = `
+                <div class="center-state">
+                    <div>⚠️ 请先登录再查看报名状态</div>
+                    <a href="register.html" style="color:var(--blue);font-size:0.8rem;margin-top:12px;display:block;">前往登录 →</a>
+                </div>`;
+            return;
+        }
+
+        // 【#CRIT-02 修复】后端 /api/delegate/user/{userId} 已加 JWT 鉴权，
+        // 必须在请求头中携带 token，否则后端返回 401，页面会显示"未提交"。
+        // mun_jwt 由 register.html 登录成功后写入 sessionStorage，
+        // 若 token 不存在（用户未登录），上方的 userId 判断已拦截，不会走到这里。
+        const token = sessionStorage.getItem('mun_jwt') || '';
+        const headers = token
+            ? { 'Authorization': 'Bearer ' + token }
+            : {};
+
+        try {
+            const res = await fetch(`/api/delegate/user/${userId}`, { headers });
+
+            if (res.status === 204 || (res.ok && res.status === 204)) {
+                renderEmpty();
+                return;
+            }
+            if (!res.ok) {
+                renderEmpty();
+                return;
+            }
+
+            // 【#039】用 text() 先接收防止空 body 导致 JSON.parse SyntaxError
+            const bodyText = await res.text();
+            if (!bodyText || bodyText.trim() === '' || bodyText.trim() === 'null') {
+                renderEmpty();
+                return;
+            }
+            const data = JSON.parse(bodyText);
+            if (!data || !data.realName) { renderEmpty(); return; }
+            renderStatus(data);
+
+        } catch (e) {
+            document.getElementById('mainCard').innerHTML = `
+                <div class="center-state">⚠️ 网络异常，无法获取报名信息<br>
+                <button class="btn-refresh" onclick="loadStatus()">🔄 重试</button></div>`;
+        }
+    }
+
+    function renderEmpty() {
+        document.getElementById('mainCard').innerHTML = `
+            <div class="card-header">
+                <div class="card-title">报名状态</div>
+                <div class="delegate-name">尚未提交报名表</div>
+            </div>
+            <div class="card-body center-state" style="padding:40px 28px;">
+                <div style="font-size:2rem;margin-bottom:12px;">📋</div>
+                您还没有填写报名表，或报名表尚未提交。<br>
+                <a href="apply.html" style="color:var(--blue);font-size:0.82rem;margin-top:14px;display:inline-block;">前往填写报名表 →</a>
+            </div>`;
+    }
+
+    function renderStatus(d) {
+        const rawStatus    = d.status || 'DRAFT';
+        const isRejected   = rawStatus.startsWith('REJECTED');
+        const rawReason    = isRejected && rawStatus.includes(':')
+            ? rawStatus.substring(rawStatus.indexOf(':') + 1) : '';
+        // 【#033】[学委] 前缀 = 学委驳回；无前缀 = 领队驳回
+        const isAdminRej   = rawReason.startsWith('[学委]');
+        const rejectReason = isAdminRej ? rawReason.substring(4) : rawReason;
+        const rejectSrc    = isAdminRej ? '学术委员会' : '领队';
+        const baseStatus   = isRejected ? 'REJECTED' : rawStatus;
+        const isTeam       = !!d.delegationId;
+        const assigned     = d.assignedCommittee || null;
+
+        const submitted = baseStatus !== 'DRAFT';
+
+        // 领队审核步骤
+        let leaderState = 'pending';
+        if (!isTeam) {
+            leaderState = 'skipped';
+        } else if (['LEADER_APPROVED','ACADEMIC_BOARD_APPROVED'].includes(baseStatus)) {
+            leaderState = 'done';
+        } else if (baseStatus === 'REJECTED') {
+            leaderState = isAdminRej ? 'done' : 'rejected';
+        } else if (baseStatus === 'PENDING') {
+            leaderState = 'active';
+        }
+
+        // 学委审核步骤
+        let boardState = 'pending';
+        if (baseStatus === 'ACADEMIC_BOARD_APPROVED') {
+            boardState = 'done';
+        } else if (baseStatus === 'LEADER_APPROVED') {
+            boardState = 'active';
+        } else if (isRejected && isAdminRej) {
+            boardState = 'rejected';
+        }
+
+        // 录取结果步骤
+        const resultState = (baseStatus === 'ACADEMIC_BOARD_APPROVED' && assigned) ? 'done'
+            : baseStatus === 'ACADEMIC_BOARD_APPROVED' ? 'active' : 'pending';
+
+        const steps = [];
+
+        // 步骤1
+        steps.push({
+            state: submitted ? 'done' : 'active',
+            icon:  submitted ? '✓' : '✏',
+            label: submitted ? '已提交报名表' : '暂存中，未正式提交',
+            sub:   submitted ? '' : '请前往报名表完成填写并正式提交'
+        });
+
+        // 步骤2（仅团体）
+        if (isTeam) {
+            let label = '等待领队审核';
+            let sub   = '报名表已提交，等待所在代表团领队初审';
+            if (leaderState === 'done') {
+                label = '领队审核已通过'; sub = '';
+            } else if (leaderState === 'rejected') {
+                label = '领队已驳回申请';
+                sub   = rejectReason ? `💬 ${esc(rejectSrc)}驳回理由：${esc(rejectReason)}` : '请修改报名表后重新提交';
+            } else if (leaderState === 'active') {
+                label = '等待领队审核'; sub = '报名表已提交，等待领队初审';
+            }
+            steps.push({ state: leaderState === 'rejected' ? 'active' : leaderState, icon: leaderState === 'done' ? '✓' : leaderState === 'rejected' ? '✗' : '⏳', label, sub });
+        }
+
+        // 步骤3
+        {
+            let label = '等待学术委员会审核';
+            let sub   = '';
+            if (boardState === 'done') {
+                label = '学术委员会终审已通过'; sub = '';
+            } else if (boardState === 'active') {
+                label = '等待学术委员会终审'; sub = '领队已通过，等待学委终审';
+            } else if (boardState === 'rejected') {
+                label = '学术委员会已驳回申请';
+                sub   = rejectReason ? `💬 学术委员会驳回理由：${esc(rejectReason)}` : '请修改报名表后重新提交';
+            } else {
+                sub = isTeam ? '领队审核通过后将进入学委审核' : '报名表提交后将进入学委审核';
+            }
+            const boardDisplay = boardState === 'rejected' ? 'active' : boardState;
+            const boardIcon    = boardState === 'done' ? '✓'
+                : boardState === 'rejected' ? '✗'
+                    : boardState === 'active'   ? '⏳' : '◌';
+            steps.push({ state: boardDisplay, icon: boardIcon, label, sub });
+        }
+
+        // 步骤4
+        steps.push({
+            state: resultState,
+            icon:  resultState === 'done' ? '🎉' : resultState === 'active' ? '⏳' : '◌',
+            label: resultState === 'done' ? '报名成功！会场已确认'
+                : resultState === 'active' ? '终审通过，等待会场分配' : '报名结果待定',
+            sub:   resultState === 'pending' ? '终审通过后学委将为您分配具体会场' : ''
+        });
+
+        const roleChip = isTeam
+            ? `<span class="role-chip role-team">团体代表</span>`
+            : `<span class="role-chip role-solo">个人代表</span>`;
+
+        const timelineHtml = steps.map(s => `
+            <div class="step ${s.state}">
+                <div class="step-dot">${s.icon}</div>
+                <div class="step-content">
+                    <div class="step-label">${s.label}</div>
+                    ${s.sub ? `<div class="step-sub">${s.sub}</div>` : ''}
+                </div>
+            </div>`).join('');
+
+        // 付款凭证状态指示器
+        const ps = d.paymentStatus || 'NOT_SUBMITTED';
+        const payDotCls   = ps === 'VERIFIED'       ? 'pay-dot-ok'
+            : ps === 'PENDING_REVIEW' ? 'pay-dot-pending'
+                : 'pay-dot-none';
+        const payText     = ps === 'VERIFIED'       ? '付款凭证已通过审核'
+            : ps === 'PENDING_REVIEW' ? '凭证已提交，等待审核'
+                : '尚未上传付款凭证';
+        const payActionHtml = ps === 'NOT_SUBMITTED'
+            ? `<a href="apply.html" class="btn-pay-link">前往上传 →</a>`
+            : '';
+        const paymentIndicatorHtml = `
+            <div class="payment-indicator">
+                <div class="pay-dot ${payDotCls}"></div>
+                <div class="pay-indicator-text">
+                    <div class="pay-indicator-label">💳 付款凭证</div>
+                    <div>${payText}</div>
+                </div>
+                ${payActionHtml}
+            </div>`;
+
+        const committeeLabel = assigned ? (COMMITTEE_ZH[assigned] || assigned) : null;
+        const resultCardHtml = `
+            <div class="result-card">
+                <div class="result-label">🏛 最终录取会场</div>
+                ${committeeLabel
+            ? `<div class="result-committee">🎉 ${esc(committeeLabel)}</div>`
+            : `<div class="result-pending">学委审核通过后将在此显示您的录取会场</div>`}
+            </div>`;
+
+        document.getElementById('mainCard').innerHTML = `
+            <div class="card-header">
+                <div class="card-title">报名状态 · Registration Status</div>
+                <div class="delegate-name">${esc(d.realName)} ${roleChip}</div>
+            </div>
+            <div class="card-body">
+                ${paymentIndicatorHtml}
+                <div class="timeline">${timelineHtml}</div>
+                ${resultCardHtml}
+                <button class="btn-refresh" onclick="loadStatus()">🔄 刷新状态</button>
+            </div>`;
+    }
+
+    window.onload = loadStatus;
+</script>
+
+<script src="aimunc-theme.js"></script>
+<script>
+    /* 主题按钮图标补写：MutationObserver 三层保障（与 dashboard/create_delegation 一致）
+       根因：aimunc-theme.js 用 DOMContentLoaded 注入按钮，
+       同步执行时按钮还不在 DOM 里，需监听插入事件后立即写图标。 */
+    (function() {
+        function applyIcon() {
+            var btn = document.getElementById('aimunc-theme-toggle');
+            if (!btn) return false;
+            if (!btn.textContent.trim()) {
+                var theme = document.documentElement.getAttribute('data-theme') || 'dark';
+                btn.textContent = theme === 'dark' ? '🌙' : '☀️';
+            }
+            return true;
+        }
+        if (applyIcon()) return;
+        var obs = new MutationObserver(function() {
+            if (applyIcon()) obs.disconnect();
+        });
+        obs.observe(document.documentElement, { childList: true, subtree: true });
+        setTimeout(function() { applyIcon(); obs.disconnect(); }, 300);
+    })();
+</script>
+<script src="chen-lee-bg.js"></script>
+<script>
+    (function() {
+        var bg = window.aimuncBgInit('chenlee-bg');
+        if (bg) window._aimuncBg = bg;
+    })();
+</script>
+<script src="aimunc-session.js"></script>
+<script>document.addEventListener('DOMContentLoaded', function(){ initIdleTimeout(60, 'register.html'); });</script>
+</body>
+</html>

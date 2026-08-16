@@ -1,0 +1,47 @@
+# IDE and local machine metadata
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Build outputs
+target/
+*.jar
+*.class
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+application-local.properties
+application-prod.properties
+credentials*.json
+secrets*.yml
+secrets*.yaml
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Runtime data and logs
+data/
+uploads/
+*.log
+*.cookies
+
+# Historical/source packages and private data exports
+*.zip
+*.sql
+*.db
+*.sqlite
+*.sqlite3
+*.csv
+*.xlsx
+*.docx
+
+# Copyright-unverified media is intentionally excluded from this showcase
+*.mp3
+
+# Local portfolio exports
+artifacts/

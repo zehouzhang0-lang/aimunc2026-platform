@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学术委员会 · 安全登录</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #08091a; --border: rgba(255,255,255,0.08);
+            --blue: #00d2ff; --red: #ef476f; --mono: 'Space Mono', monospace;
+            --sans: 'Noto Sans SC', sans-serif;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--bg); color: #dde1f0;
+            font-family: var(--sans); min-height: 100vh;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+        }
+        /* 网格背景 */
+        body::before {
+            content: '';
+            position: fixed; inset: 0;
+            background-image:
+                    linear-gradient(rgba(0,210,255,0.03) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(0,210,255,0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+        }
+        .card {
+            background: rgba(13,16,48,0.8);
+            border: 1px solid var(--border);
+            border-radius: 20px; padding: 44px 40px;
+            width: 380px;
+            backdrop-filter: blur(20px);
+            box-shadow: 0 0 60px rgba(0,210,255,0.07);
+            position: relative;
+        }
+        .card::before {
+            content: '';
+            position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+            width: 60%; height: 1px;
+            background: linear-gradient(90deg, transparent, var(--blue), transparent);
+        }
+        .shield { font-size: 2.4rem; text-align: center; margin-bottom: 12px; }
+        .title {
+            font-family: var(--mono); font-size: 0.7rem; letter-spacing: 0.2em;
+            text-transform: uppercase; color: var(--blue); text-align: center; margin-bottom: 4px;
+        }
+        .subtitle { font-size: 0.75rem; color: rgba(255,255,255,0.35); text-align: center; margin-bottom: 36px; }
+        .field { margin-bottom: 18px; }
+        .field label { display: block; font-size: 0.68rem; color: rgba(255,255,255,0.4);
+            letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 7px; font-family: var(--mono); }
+        .field input {
+            width: 100%; background: rgba(255,255,255,0.04);
+            border: 1px solid var(--border); color: #fff;
+            border-radius: 8px; padding: 11px 14px; font-size: 0.85rem;
+            font-family: var(--sans); outline: none; transition: border-color .2s;
+        }
+        .field input:focus { border-color: rgba(0,210,255,0.5); background: rgba(0,210,255,0.04); }
+        .btn-login {
+            width: 100%; padding: 13px;
+            background: linear-gradient(135deg, rgba(0,210,255,0.2), rgba(0,210,255,0.1));
+            border: 1px solid rgba(0,210,255,0.45); color: var(--blue);
+            border-radius: 9px; font-family: var(--sans); font-size: 0.88rem; font-weight: 700;
+            cursor: pointer; transition: all .2s; margin-top: 8px; letter-spacing: 0.05em;
+        }
+        .btn-login:hover { background: rgba(0,210,255,0.25); box-shadow: 0 0 20px rgba(0,210,255,0.2); }
+        .msg { margin-top: 14px; font-size: 0.75rem; text-align: center; min-height: 20px; color: var(--red); }
+        .back { margin-top: 20px; text-align: center; font-size: 0.72rem; }
+        .back a { color: rgba(255,255,255,0.25); text-decoration: none; transition: color .2s; }
+        .back a:hover { color: var(--blue); }
+        .warning-tag {
+            display: flex; align-items: center; gap: 6px; justify-content: center;
+            margin-bottom: 28px;
+            background: rgba(239,71,111,0.1); border: 1px solid rgba(239,71,111,0.25);
+            border-radius: 6px; padding: 6px 12px;
+            font-size: 0.65rem; color: rgba(239,71,111,0.8); font-family: var(--mono);
+            letter-spacing: 0.06em; text-transform: uppercase;
+        }
+    </style>
+</head>
+<body>
+<div class="card">
+    <div class="shield">🛡</div>
+    <div class="title">Academic Board</div>
+    <div class="subtitle">AIMUNC 2026 · 学术委员会专属入口</div>
+    <div class="warning-tag">⚠ 仅限授权学术委员使用</div>
+    <div class="field">
+        <label>管理员账号</label>
+        <input type="text" id="username" placeholder="请输入管理员账号" autocomplete="off">
+    </div>
+    <div class="field">
+        <label>安全密码</label>
+        <input type="password" id="password" placeholder="请输入密码" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="btn-login" onclick="doLogin()">进入学术委员会控制台 →</button>
+    <div class="msg" id="msg"></div>
+    <div class="back"><a href="index.html">← 返回门户首页</a></div>
+</div>
+<script>
+    // ════════════════════════════════════════════════════════════════
+    // 【#CRIT-01 修复】管理员登录逻辑
+    //
+    // 修复内容：
+    //   旧版调用 /api/users/register（注册+登录一体化接口），
+    //   该接口在账号不存在时会自动创建账号，存在竞态窗口和残留风险。
+    //
+    //   新版改调 /api/users/login（纯登录接口）：
+    //     · 账号不存在 → 后端直接返回 401，不创建任何账号
+    //     · 密码错误   → 后端同样返回 401
+    //     · 登录成功   → 后端返回与原来格式完全相同的 JSON（含 token）
+    //
+    //   同步删除：
+    //     · isNewUser 判断逻辑（新接口永远不会返回 isNewUser=true）
+    //     · DELETE /api/users/{id} 撤销调用（不再需要）
+    //
+    //   保持不变：
+    //     · sessionStorage 写入的 key 名称（mun_admin_id 等）完全不变
+    //     · 登录成功后的跳转逻辑完全不变
+    //     · 纵深防御：保留前端侧的 role !== 'ADMIN' 二次校验
+    // ════════════════════════════════════════════════════════════════
+    async function doLogin() {
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+        const msg = document.getElementById('msg');
+
+        if (!username || !password) { msg.textContent = '请填写账号和密码'; return; }
+        msg.textContent = '验证中...'; msg.style.color = '#00d2ff';
+
+        try {
+            // 【#CRIT-01】改调 /login，不再使用 /register
+            const res = await fetch('/api/users/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password_hash: password, role: 'ADMIN' })
+            });
+
+            if (!res.ok) {
+                // 后端对"账号不存在"和"密码错误"统一返回 401，
+                // 此处不区分两种情况，防止攻击者探测账号是否存在
+                msg.style.color = '#ef476f';
+                msg.textContent = '❌ 账号或密码错误，请重试';
+                return;
+            }
+
+            const result = await res.json();
+
+            // 纵深防御：后端已按 role='ADMIN' 查库，理论上不会出现此分支，
+            // 但前端再校验一次，防止意外情况下越权进入控制台
+            if (result.role !== 'ADMIN') {
+                msg.style.color = '#ef476f';
+                msg.textContent = '❌ 权限不足，此入口仅限 ADMIN 账号';
+                return;
+            }
+
+            // 【Bug Fix 保留】管理员使用独立 key，不覆盖代表/领队的 mun_user_id
+            sessionStorage.setItem('mun_admin_id',       result.id);
+            sessionStorage.setItem('mun_admin_username', result.username);
+            sessionStorage.setItem('mun_admin_role',     'ADMIN');
+            // 【#050/#060 保留】存储管理员 JWT token，供 admin_dashboard.html 所有接口鉴权使用
+            if (result.token) sessionStorage.setItem('mun_admin_jwt', result.token);
+
+            msg.style.color = '#06d6a0';
+            msg.textContent = '✅ 验证通过，加载控制台...';
+            setTimeout(() => location.href = 'admin_dashboard.html', 900);
+
+        } catch(e) {
+            msg.style.color = '#ef476f';
+            msg.textContent = '⚠ 网络异常，请重试';
+        }
+    }
+</script>
+<script src="aimunc-session.js"></script>
+</body>
+</html>

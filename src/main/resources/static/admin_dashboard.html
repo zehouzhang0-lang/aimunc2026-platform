@@ -1,0 +1,1594 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>学术委员会控制台 · AIMUNC 2026</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --bg:          #08091a;
+            --bg2:         #0d1030;
+            --panel:       rgba(255,255,255,0.035);
+            --panel-hover: rgba(255,255,255,0.065);
+            --border:      rgba(255,255,255,0.07);
+            --border-hi:   rgba(0,210,255,0.55);
+            --blue:        #00d2ff;
+            --gold:        #ffd166;
+            --green:       #06d6a0;
+            --red:         #ef476f;
+            --purple:      #a29bfe;
+            --text:        #dde1f0;
+            --muted:       #6b7280;
+            --mono:        'Space Mono', monospace;
+            --sans:        'Noto Sans SC', sans-serif;
+            --sidebar-w:   290px;
+        }
+        * { box-sizing: border-box; }
+        body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13.5px; margin: 0; min-height: 100vh; }
+
+        /* ── TOPBAR ── */
+        .topbar {
+            position: sticky; top: 0; z-index: 200;
+            background: rgba(8,9,26,0.92); backdrop-filter: blur(18px);
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 28px; height: 56px;
+        }
+        .topbar-brand { font-family: var(--mono); font-size: 0.78rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--blue); }
+        .topbar-brand span { color: var(--gold); }
+        .topbar-right { display: flex; align-items: center; gap: 10px; }
+        .admin-chip { background: rgba(239,71,111,0.18); color: var(--red); border: 1px solid rgba(239,71,111,0.35); border-radius: 4px; font-family: var(--mono); font-size: 0.65rem; letter-spacing: 0.1em; padding: 3px 9px; text-transform: uppercase; }
+        .btn-signout { background: transparent; border: 1px solid var(--border); color: var(--muted); font-size: 0.75rem; border-radius: 6px; padding: 5px 14px; cursor: pointer; transition: all .2s; }
+        .btn-signout:hover { border-color: var(--red); color: var(--red); }
+        .btn-export { background: rgba(255,209,102,0.1); border: 1px solid rgba(255,209,102,0.35); color: var(--gold); border-radius: 7px; padding: 6px 16px; cursor: pointer; font-size: 0.78rem; font-weight: 600; transition: all .2s; display: flex; align-items: center; gap: 6px; font-family: var(--sans); }
+        .btn-export:hover { background: rgba(255,209,102,0.2); box-shadow: 0 0 12px rgba(255,209,102,0.2); }
+        .btn-export:active { transform: scale(0.97); }
+
+        /* Toast */
+        #exportToast {
+            position: fixed; bottom: 32px; left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(6,214,160,0.15); border: 1px solid rgba(6,214,160,0.4);
+            color: var(--green); padding: 11px 26px; border-radius: 50px;
+            font-size: 0.82rem; font-weight: 600;
+            box-shadow: 0 8px 24px rgba(6,214,160,0.2);
+            opacity: 0; transition: opacity 0.25s ease, transform 0.25s ease;
+            pointer-events: none; white-space: nowrap; z-index: 9999;
+        }
+        #exportToast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* ── LAYOUT ── */
+        .layout { display: flex; height: calc(100vh - 56px); }
+
+        /* ── SIDEBAR ── */
+        .sidebar { width: var(--sidebar-w); min-width: var(--sidebar-w); border-right: 1px solid var(--border); overflow-y: auto; padding: 20px 16px; background: rgba(13,16,48,0.6); display: flex; flex-direction: column; gap: 22px; }
+        .sidebar::-webkit-scrollbar { width: 3px; }
+        .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+        .sidebar-section-title { font-family: var(--mono); font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+        .sidebar-section-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+        .priority-group { display: flex; flex-direction: column; gap: 6px; }
+        .priority-btn { background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 8px; padding: 9px 12px; cursor: pointer; transition: all .18s; display: flex; align-items: center; gap: 9px; font-family: var(--sans); font-size: 0.8rem; text-align: left; }
+        .priority-btn .p-icon { font-size: 1rem; }
+        .priority-btn .p-label { font-weight: 500; color: var(--text); line-height: 1.2; }
+        .priority-btn .p-desc { font-size: 0.67rem; color: var(--muted); }
+        .priority-btn:hover { border-color: var(--blue); background: rgba(0,210,255,0.06); }
+        .priority-btn.active { border-color: var(--blue); background: rgba(0,210,255,0.1); box-shadow: 0 0 0 1px rgba(0,210,255,0.2); }
+        .priority-btn.active .p-label { color: var(--blue); }
+        .pref-chips { display: flex; gap: 6px; }
+        .pref-chip { flex: 1; background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 7px 4px; cursor: pointer; text-align: center; font-size: 0.75rem; font-family: var(--mono); transition: all .15s; user-select: none; }
+        .pref-chip:hover { border-color: var(--purple); color: var(--purple); }
+        .pref-chip.active { background: rgba(162,155,254,0.15); border-color: var(--purple); color: var(--purple); }
+        .sort-hint { background: rgba(162,155,254,0.06); border: 1px solid rgba(162,155,254,0.15); border-radius: 7px; padding: 8px 10px; font-size: 0.68rem; color: rgba(162,155,254,0.7); line-height: 1.6; display: none; }
+        .sort-hint.show { display: block; }
+        .committee-list { display: flex; flex-direction: column; gap: 5px; }
+        .committee-item { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 7px; cursor: pointer; border: 1px solid transparent; transition: all .15s; }
+        .committee-item:hover { background: var(--panel); }
+        .committee-item.active { background: rgba(0,210,255,0.07); border-color: rgba(0,210,255,0.2); }
+        .c-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; }
+        .c-name { font-size: 0.8rem; color: var(--text); flex: 1; }
+        .c-check { font-size: 0.7rem; color: var(--blue); opacity: 0; transition: opacity .15s; }
+        .committee-item.active .c-check { opacity: 1; }
+        .committee-item.active .c-name { color: var(--blue); }
+        .mpc-divider { font-family: var(--mono); font-size: 0.58rem; letter-spacing: 0.1em; color: var(--gold); margin: 8px 0 4px; opacity: 0.7; text-transform: uppercase; }
+        .btn-clear-all { background: transparent; border: 1px solid rgba(239,71,111,0.3); color: rgba(239,71,111,0.7); border-radius: 6px; font-size: 0.72rem; padding: 6px; cursor: pointer; transition: all .15s; width: 100%; font-family: var(--sans); }
+        .btn-clear-all:hover { background: rgba(239,71,111,0.1); color: var(--red); }
+
+        /* ── MAIN ── */
+        .main { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+        .main::-webkit-scrollbar { width: 4px; }
+        .main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+        .stat-banner { display: flex; gap: 1px; border-bottom: 1px solid var(--border); background: var(--border); }
+        .stat-cell { flex: 1; background: var(--bg2); padding: 14px 18px; display: flex; flex-direction: column; gap: 2px; }
+        .stat-label { font-size: 0.67rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
+        .stat-value { font-family: var(--mono); font-size: 1.5rem; font-weight: 700; line-height: 1; }
+        .stat-sub { font-size: 0.63rem; color: var(--muted); margin-top: 2px; }
+        .list-header { padding: 12px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; background: rgba(8,9,26,0.95); backdrop-filter: blur(12px); }
+        .list-title { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; }
+        .sort-mode-badge { background: rgba(0,210,255,0.12); border: 1px solid rgba(0,210,255,0.3); color: var(--blue); font-size: 0.65rem; font-family: var(--mono); padding: 3px 9px; border-radius: 3px; letter-spacing: 0.05em; }
+        .result-count { font-size: 0.72rem; color: var(--muted); font-family: var(--mono); }
+
+        /* ── 代表卡片 ── */
+        .delegates-container { padding: 10px 16px; display: flex; flex-direction: column; gap: 7px; }
+        .delegate-card { border: 1px solid var(--border); border-radius: 11px; overflow: hidden; transition: border-color .2s; background: var(--panel); }
+        .delegate-card:hover { border-color: rgba(255,255,255,0.13); }
+        .delegate-card.expanded { border-color: var(--border-hi); }
+        .card-main { display: grid; grid-template-columns: 34px 170px 1fr auto auto; align-items: center; padding: 11px 14px; gap: 10px; cursor: pointer; transition: background .15s; }
+        .card-main:hover { background: var(--panel-hover); }
+        .row-index { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); text-align: center; }
+        .person-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .person-name { font-size: 0.92rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 6px; }
+        .person-school { font-size: 0.7rem; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .pref-area { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+        .pref-pill { display: flex; align-items: center; gap: 4px; padding: 3px 8px; border-radius: 20px; font-size: 0.68rem; font-weight: 500; border: 1px solid; white-space: nowrap; }
+        .pref-pill.p1 { background: rgba(6,214,160,0.1);   border-color: rgba(6,214,160,0.4);   color: var(--green); }
+        .pref-pill.p2 { background: rgba(0,210,255,0.08);  border-color: rgba(0,210,255,0.3);   color: var(--blue); }
+        .pref-pill.p3 { background: rgba(162,155,254,0.08);border-color: rgba(162,155,254,0.25);color: var(--purple); }
+        /* MPC 勋章：中文金色 / 英文紫色 */
+        .mpc-pill    { font-size: 0.63rem; padding: 2px 6px; border-radius: 3px; font-family: var(--mono); font-weight: 700; letter-spacing: 0.04em; }
+        .mpc-pill-zh { background: linear-gradient(90deg,rgba(255,209,102,0.15),rgba(255,160,50,0.1)); border: 1px solid rgba(255,209,102,0.45); color: var(--gold); }
+        .mpc-pill-en { background: linear-gradient(90deg,rgba(162,155,254,0.15),rgba(130,110,255,0.1)); border: 1px solid rgba(162,155,254,0.45); color: var(--purple); }
+        .status-area { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 120px; }
+        .status-badge { font-size: 0.6rem; font-family: var(--mono); padding: 3px 7px; border-radius: 3px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 700; }
+        .s-pending   { background: rgba(255,209,102,0.12); color: var(--gold);  border: 1px solid rgba(255,209,102,0.3); }
+        .s-approved  { background: rgba(6,214,160,0.12);   color: var(--green); border: 1px solid rgba(6,214,160,0.3); }
+        .s-rejected  { background: rgba(239,71,111,0.12);  color: var(--red);   border: 1px solid rgba(239,71,111,0.3); }
+        .s-leader-ok { background: rgba(0,210,255,0.1);    color: var(--blue);  border: 1px solid rgba(0,210,255,0.3); }
+        .ts { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); }
+        .action-area { display: flex; align-items: center; gap: 5px; justify-content: flex-end; flex-shrink: 0; }
+        .btn-expand { background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 5px 9px; cursor: pointer; font-size: 0.68rem; transition: all .15s; font-family: var(--sans); display: flex; align-items: center; gap: 3px; white-space: nowrap; }
+        .btn-expand:hover { border-color: var(--blue); color: var(--blue); }
+        .btn-approve { background: rgba(6,214,160,0.12); border: 1px solid rgba(6,214,160,0.35); color: var(--green); border-radius: 6px; padding: 5px 9px; cursor: pointer; font-size: 0.68rem; transition: all .2s; font-family: var(--sans); white-space: nowrap; }
+        .btn-approve:hover { background: rgba(6,214,160,0.22); }
+        /* 【#031】志愿分配按钮 */
+        .btn-assign { background: rgba(162,155,254,0.12); border: 1px solid rgba(162,155,254,0.4); color: var(--purple); border-radius: 6px; padding: 5px 9px; cursor: pointer; font-size: 0.68rem; transition: all .2s; font-family: var(--sans); white-space: nowrap; }
+        .btn-assign:hover { background: rgba(162,155,254,0.22); }
+        /* 【#031】已录取标签 */
+        .assigned-badge { background: rgba(6,214,160,0.12); border: 1px solid rgba(6,214,160,0.3); color: var(--green); font-size: 0.6rem; font-family: var(--mono); padding: 2px 6px; border-radius: 3px; white-space: nowrap; }
+        /* 【付款凭证 Step 5】付款状态徽章 */
+        .payment-badge { font-size: 0.58rem; font-family: var(--mono); padding: 2px 6px; border-radius: 3px; white-space: nowrap; }
+        .pay-none    { background: rgba(107,114,128,0.12); border: 1px solid rgba(107,114,128,0.25); color: var(--muted); }
+        .pay-pending { background: rgba(255,209,102,0.12); border: 1px solid rgba(255,209,102,0.35); color: var(--gold); }
+        .pay-ok      { background: rgba(6,214,160,0.10);  border: 1px solid rgba(6,214,160,0.35);   color: var(--green); }
+
+        /* ── 视图切换 Tab ── */
+        .view-tab-group { display: flex; gap: 4px; }
+        .view-tab {
+            background: transparent; border: 1px solid var(--border);
+            color: var(--muted); border-radius: 6px; padding: 5px 14px;
+            cursor: pointer; font-size: 0.72rem; font-family: var(--mono);
+            letter-spacing: 0.06em; transition: all .16s;
+        }
+        .view-tab:hover { border-color: var(--blue); color: var(--blue); }
+        .view-tab.active { background: rgba(0,210,255,0.12); border-color: var(--blue); color: var(--blue); }
+
+        /* ── 代表团侧边栏 ── */
+        #sidebar-delegation { display: none; flex-direction: column; gap: 18px; }
+        .dgn-search-input {
+            width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+            border-radius: 7px; padding: 7px 10px; color: var(--text); font-family: var(--sans);
+            font-size: 0.78rem; outline: none; transition: border-color .15s;
+        }
+        .dgn-search-input:focus { border-color: var(--blue); }
+        .dgn-search-input::placeholder { color: var(--muted); }
+
+        /* ── 代表团卡片 ── */
+        .dgn-card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; transition: border-color .15s; }
+        .dgn-card:hover { border-color: rgba(0,210,255,0.25); }
+        .dgn-card-main { display: flex; align-items: center; gap: 14px; padding: 13px 16px; cursor: pointer; }
+        .dgn-seq { font-family: var(--mono); font-size: 0.62rem; color: var(--muted); min-width: 28px; }
+        .dgn-info { flex: 1; min-width: 0; }
+        .dgn-name { font-weight: 600; font-size: 0.92rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .dgn-school { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+        .dgn-badges { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
+        .dgn-invite { font-family: var(--mono); font-size: 0.68rem; color: var(--gold); letter-spacing: 0.1em; background: rgba(255,209,102,0.08); border: 1px solid rgba(255,209,102,0.2); padding: 2px 7px; border-radius: 4px; }
+        .dgn-member-count { font-size: 0.65rem; color: var(--muted); }
+        .dgn-completion { display: flex; gap: 4px; flex-wrap: wrap; }
+        .dgn-flag { font-size: 0.6rem; padding: 1px 6px; border-radius: 3px; font-weight: 600; }
+        .dgn-flag.done { background: rgba(6,214,160,0.12); color: var(--green); border: 1px solid rgba(6,214,160,0.3); }
+        .dgn-flag.pend { background: rgba(107,114,128,0.15); color: var(--muted); border: 1px solid rgba(107,114,128,0.2); }
+
+        /* ── 代表团展开详情 ── */
+        .dgn-detail { display: none; border-top: 1px solid var(--border); padding: 16px 18px; background: rgba(0,0,0,0.25); animation: slideDown .16s ease; }
+        .dgn-leader-block { display: flex; gap: 18px; flex-wrap: wrap; margin-bottom: 12px; }
+        .dgn-lf .dk { font-size: 0.62rem; color: var(--muted); margin-bottom: 2px; }
+        .dgn-lf .dv { font-size: 0.82rem; color: var(--text); font-weight: 500; }
+        .dgn-members-title { font-family: var(--mono); font-size: 0.57rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin: 12px 0 8px; padding-top: 10px; border-top: 1px solid var(--border); }
+        .dgn-member-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 0.78rem; }
+        .dgn-member-row:last-child { border-bottom: none; }
+        .dgn-m-name { font-weight: 500; min-width: 80px; color: var(--text); }
+        .dgn-m-grade { color: var(--muted); font-size: 0.68rem; min-width: 36px; }
+        .dgn-m-prefs { color: var(--muted); font-size: 0.65rem; flex: 1; }
+        .dgn-m-status { margin-left: auto; }
+        .dgn-m-pay { font-size: 0.65rem; color: var(--muted); }
+
+        /* ── dgn-detail 内嵌代表卡片适配 ── */
+        .dgn-detail .delegate-card { margin-bottom: 6px; }
+        /* ── 代表类型标签（原F3移至此处）── */
+        .type-badge { display: inline-block; font-size: 0.62rem; font-weight: 700; padding: 1px 6px; border-radius: 4px; vertical-align: middle; margin-right: 4px; letter-spacing: 0.04em; }
+        .type-solo { background: rgba(100,180,255,0.15); color: var(--blue);  border: 1px solid rgba(100,180,255,0.3); }
+        .type-team { background: rgba(120,220,160,0.15); color: var(--green); border: 1px solid rgba(120,220,160,0.3); }
+        .delegation-tag { font-size: 0.68rem; color: var(--muted); margin-left: 6px; opacity: 0.85; }
+        /* 【付款凭证 Step 5】付款筛选按钮 */
+        .pay-filter-btn { width: 100%; background: transparent; border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 6px 8px; cursor: pointer; text-align: left; font-size: 0.72rem; font-family: var(--sans); transition: all .15s; user-select: none; }
+        .pay-filter-btn:hover { border-color: var(--gold); color: var(--gold); }
+        .pay-filter-btn.active { background: rgba(255,209,102,0.1); border-color: var(--gold); color: var(--gold); }
+        /* 【付款凭证 Step 5】详情区付款凭证区域 */
+        .detail-payment { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+        .pay-proof-img { max-width: 100%; max-height: 280px; border-radius: 7px; border: 1px solid var(--border); margin-top: 10px; display: block; cursor: zoom-in; }
+        .btn-pay-approve { background: rgba(6,214,160,0.12); border: 1px solid rgba(6,214,160,0.4); color: var(--green); padding: 5px 14px; border-radius: 6px; cursor: pointer; font-size: 0.72rem; font-weight: 600; transition: all .2s; font-family: var(--sans); }
+        .btn-pay-approve:hover { background: rgba(6,214,160,0.25); }
+        .btn-pay-reject  { background: rgba(239,71,111,0.08); border: 1px solid rgba(239,71,111,0.3); color: var(--red); padding: 5px 14px; border-radius: 6px; cursor: pointer; font-size: 0.72rem; font-weight: 600; transition: all .2s; font-family: var(--sans); }
+        .btn-pay-reject:hover  { background: rgba(239,71,111,0.2); }
+
+        /* ── 详情面板 ── */
+        .card-detail { display: none; border-top: 1px solid var(--border); padding: 18px 20px; background: rgba(0,0,0,0.3); backdrop-filter: blur(12px); animation: slideDown .16s ease; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 18px; }
+        .detail-section-title { font-family: var(--mono); font-size: 0.57rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); margin-bottom: 9px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+        .detail-field { margin-bottom: 7px; }
+        .detail-key { font-size: 0.65rem; color: var(--muted); margin-bottom: 2px; }
+        .detail-val { font-size: 0.8rem; color: var(--text); font-weight: 500; }
+        .detail-val.phone-mask { cursor: pointer; }
+        .detail-val.phone-mask:hover { color: var(--blue); }
+        .detail-academic { margin-top: 14px; }
+        .academic-text { background: rgba(0,0,0,0.3); border: 1px solid var(--border); border-radius: 7px; padding: 11px 13px; font-size: 0.78rem; color: rgba(255,255,255,0.6); line-height: 1.7; max-height: 110px; overflow-y: auto; }
+        .detail-actions { margin-top: 14px; display: flex; gap: 7px; justify-content: flex-end; }
+        .btn-detail-approve { background: rgba(6,214,160,0.15); border: 1px solid rgba(6,214,160,0.4); color: var(--green); padding: 7px 18px; border-radius: 7px; cursor: pointer; font-size: 0.76rem; font-weight: 600; transition: all .2s; font-family: var(--sans); }
+        .btn-detail-approve:hover { background: rgba(6,214,160,0.28); }
+        .btn-detail-reject { background: rgba(239,71,111,0.1); border: 1px solid rgba(239,71,111,0.3); color: var(--red); padding: 7px 18px; border-radius: 7px; cursor: pointer; font-size: 0.76rem; font-weight: 600; transition: all .2s; font-family: var(--sans); }
+        .btn-detail-reject:hover { background: rgba(239,71,111,0.22); }
+
+        /* ── 驳回 Modal ── */
+        .reject-modal-overlay {
+            display: none; position: fixed; inset: 0; z-index: 500;
+            background: rgba(0,0,0,0.65); backdrop-filter: blur(6px);
+            align-items: center; justify-content: center;
+        }
+        .reject-modal-overlay.show { display: flex; }
+        .reject-modal {
+            background: #0d1030; border: 1px solid var(--border);
+            border-radius: 16px; padding: 28px 32px; width: 440px; max-width: 92vw;
+            box-shadow: 0 24px 60px rgba(0,0,0,0.6);
+            border-top: 3px solid var(--red);
+        }
+        .reject-modal-title { font-size: 1rem; font-weight: 700; color: #fff; margin-bottom: 4px; }
+        .reject-modal-sub { font-size: 0.75rem; color: var(--muted); margin-bottom: 20px; }
+        .reject-modal textarea {
+            width: 100%; background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text); font-family: var(--sans); font-size: 0.83rem;
+            padding: 11px 13px; resize: vertical; min-height: 90px; outline: none;
+            transition: border-color .2s;
+        }
+        .reject-modal textarea:focus { border-color: rgba(239,71,111,0.5); }
+        .reject-modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; }
+        .btn-modal-cancel { background: transparent; border: 1px solid var(--border); color: var(--muted); padding: 8px 20px; border-radius: 7px; cursor: pointer; font-size: 0.8rem; font-family: var(--sans); transition: all .15s; }
+        .btn-modal-cancel:hover { border-color: var(--muted); color: var(--text); }
+        .btn-modal-confirm { background: rgba(239,71,111,0.15); border: 1px solid rgba(239,71,111,0.4); color: var(--red); padding: 8px 20px; border-radius: 7px; cursor: pointer; font-size: 0.8rem; font-weight: 600; font-family: var(--sans); transition: all .2s; }
+        .btn-modal-confirm:hover { background: rgba(239,71,111,0.28); }
+
+        /* 加载状态 */
+        .loading-state { padding: 60px 20px; text-align: center; color: var(--muted); font-size: 0.8rem; }
+        .loading-spinner { width: 28px; height: 28px; border: 2px solid var(--border); border-top-color: var(--blue); border-radius: 50%; animation: spin .8s linear infinite; margin: 0 auto 12px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* 分组分隔线 */
+        .group-separator { display: flex; align-items: center; gap: 10px; padding: 8px 4px; margin: 4px 0; }
+        .gs-label { font-family: var(--mono); font-size: 0.62rem; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; white-space: nowrap; }
+        .gs-line { flex: 1; height: 1px; background: var(--border); }
+
+        /* 分页 */
+        .pagination-bar { display: flex; align-items: center; justify-content: center; gap: 5px; padding: 18px; }
+        .pg-btn { background: var(--panel); border: 1px solid var(--border); color: var(--muted); width: 30px; height: 30px; border-radius: 5px; cursor: pointer; font-family: var(--mono); font-size: 0.7rem; transition: all .15s; display: flex; align-items: center; justify-content: center; }
+        .pg-btn:hover, .pg-btn.active { border-color: var(--blue); color: var(--blue); background: rgba(0,210,255,0.1); }
+        .pg-btn:disabled { opacity: 0.3; cursor: default; }
+        .empty-state { padding: 60px 20px; text-align: center; color: var(--muted); font-size: 0.8rem; display: none; }
+        .empty-state .big { font-size: 2rem; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+<div id="exportToast"></div>
+
+<!-- 驳回 Modal -->
+<div class="reject-modal-overlay" id="rejectModal">
+    <div class="reject-modal">
+        <div class="reject-modal-title">❌ 驳回申请</div>
+        <div class="reject-modal-sub" id="rejectModalSub">请填写驳回理由，理由将通知代表及所属领队。</div>
+        <textarea id="rejectReason" placeholder="请填写驳回理由（必填）…"></textarea>
+        <div class="reject-modal-actions">
+            <button class="btn-modal-cancel" onclick="closeRejectModal()">取消</button>
+            <button class="btn-modal-confirm" onclick="confirmReject()">确认驳回</button>
+        </div>
+    </div>
+</div>
+
+<!-- 【#031】志愿分配 Modal -->
+<div class="reject-modal-overlay" id="assignModal">
+    <div class="reject-modal" style="border-top-color: var(--purple);">
+        <div class="reject-modal-title">🎯 志愿分配</div>
+        <div class="reject-modal-sub" id="assignModalSub">请为代表选择最终录取会场</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:16px;" id="assignOptions"></div>
+        <div style="margin-top:12px;">
+            <label style="font-size:0.72rem;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer;">
+                <input type="checkbox" id="assignResetCheck" style="accent-color:var(--red);">
+                <span style="color:rgba(239,71,111,0.8);">撤回分配（清空录取会场）</span>
+            </label>
+        </div>
+        <div class="reject-modal-actions">
+            <button class="btn-modal-cancel" onclick="closeAssignModal()">取消</button>
+            <button class="btn-modal-confirm" onclick="confirmAssign()" style="background:rgba(162,155,254,0.15);border-color:rgba(162,155,254,0.4);color:var(--purple);">确认分配</button>
+        </div>
+    </div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+    <div class="topbar-brand">AIMUNC <span>2026</span> &nbsp;·&nbsp; ACADEMIC BOARD</div>
+    <div class="topbar-right">
+        <button class="btn-export" onclick="exportExcel()"><span>📊</span> 导出当前筛选结果 Excel</button>
+        <div class="admin-chip">🛡 ADMIN</div>
+        <div id="adminUsername" style="font-size:0.75rem;color:var(--muted);">—</div>
+        <button class="btn-signout" onclick="signOut()">退出</button>
+    </div>
+</div>
+
+<div class="layout">
+    <div class="sidebar">
+        <!-- 代表名单侧边栏 -->
+        <div id="sidebar-delegate" style="display:flex;flex-direction:column;gap:22px;width:100%;">
+            <div>
+                <div class="sidebar-section-title">排序优先权</div>
+                <div class="priority-group">
+                    <button class="priority-btn" id="pb-volunteer" onclick="setPriority('VOLUNTEER',this)">
+                        <span class="p-icon">⭐</span>
+                        <div><div class="p-label">志愿优先</div><div class="p-desc">志愿权重 → 会场 A-Z → 报名顺序</div></div>
+                    </button>
+                    <button class="priority-btn" id="pb-committee" onclick="setPriority('COMMITTEE',this)">
+                        <span class="p-icon">🏛️</span>
+                        <div><div class="p-label">会场优先</div><div class="p-desc">会场 A-Z → 志愿 → 报名顺序</div></div>
+                    </button>
+                    <button class="priority-btn active" id="pb-time" onclick="setPriority('TIME',this)">
+                        <span class="p-icon">🕒</span>
+                        <div><div class="p-label">报名顺序</div><div class="p-desc">按报名先后排列（默认）</div></div>
+                    </button>
+                </div>
+            </div>
+            <div>
+                <div class="sidebar-section-title">志愿顺位筛选</div>
+                <div class="pref-chips">
+                    <div class="pref-chip" id="pc-1" onclick="togglePref(1,this)">1st</div>
+                    <div class="pref-chip" id="pc-2" onclick="togglePref(2,this)">2nd</div>
+                    <div class="pref-chip" id="pc-3" onclick="togglePref(3,this)">3rd</div>
+                </div>
+                <div class="sort-hint" id="sort-hint" style="margin-top:9px;"></div>
+                <div style="font-size:0.63rem;color:var(--muted);margin-top:7px;">不选 = 展示全部志愿顺位</div>
+            </div>
+            <!-- 【付款凭证 Step 5】付款凭证筛选 -->
+            <div>
+                <div class="sidebar-section-title">付款凭证筛选</div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    <button class="pay-filter-btn" id="pf-none"    onclick="togglePayFilter('NOT_SUBMITTED',this)">⚪ 未交凭证</button>
+                    <button class="pay-filter-btn" id="pf-pending" onclick="togglePayFilter('PENDING_REVIEW',this)">⏳ 待审核</button>
+                    <button class="pay-filter-btn" id="pf-ok"      onclick="togglePayFilter('VERIFIED',this)">✅ 已通过</button>
+                </div>
+                <div style="font-size:0.63rem;color:var(--muted);margin-top:7px;">不选 = 展示全部</div>
+            </div>
+            <div>
+                <div class="sidebar-section-title">会场筛选</div>
+                <div class="committee-list" id="committee-list"></div>
+                <div style="font-size:0.63rem;color:var(--muted);margin-top:7px;">不选 = 展示全部会场 · MPC 可兼任</div>
+            </div>
+            <button class="btn-clear-all" onclick="clearAllFilters()">↺ 清除全部筛选</button>
+        </div><!-- /sidebar-delegate -->
+
+        <!-- 代表团名单侧边栏 -->
+        <div id="sidebar-delegation" style="display:none;flex-direction:column;gap:18px;">
+            <div>
+                <div class="sidebar-section-title">搜索学校</div>
+                <input type="text" class="dgn-search-input" id="dgnSearch"
+                       placeholder="模糊搜索学校名…"
+                       oninput="dgnApplyFilters()">
+            </div>
+            <div>
+                <div class="sidebar-section-title">完成度筛选</div>
+                <div style="display:flex;flex-direction:column;gap:6px;">
+                    <button class="pay-filter-btn" id="dgn-f-applied"  onclick="toggleDgnFilter('applied',this)">📝 全员已提交报名</button>
+                    <button class="pay-filter-btn" id="dgn-f-paid"     onclick="toggleDgnFilter('paid',this)">💳 全员已提交凭证</button>
+                    <button class="pay-filter-btn" id="dgn-f-approved" onclick="toggleDgnFilter('approved',this)">🏆 全员已通过终审</button>
+                </div>
+                <div style="font-size:0.63rem;color:var(--muted);margin-top:7px;">不选 = 展示全部 · 可多选</div>
+            </div>
+            <button class="btn-clear-all" onclick="clearDgnFilters()">↺ 清除代表团筛选</button>
+        </div><!-- /sidebar-delegation -->
+    </div>
+
+    <div class="main">
+        <div class="stat-banner">
+            <div class="stat-cell">
+                <div class="stat-label">总报名</div>
+                <div class="stat-value" style="color:var(--blue);" id="stat-total">—</div>
+                <div class="stat-sub" id="stat-quota">已报名代表</div>
+            </div>
+            <div class="stat-cell">
+                <div class="stat-label">领队通过 · 待终审</div>
+                <div class="stat-value" style="color:var(--gold);" id="stat-leader">—</div>
+                <div class="stat-sub">LEADER_APPROVED</div>
+            </div>
+            <div class="stat-cell">
+                <div class="stat-label">学委终审通过</div>
+                <div class="stat-value" style="color:var(--green);" id="stat-board">—</div>
+                <div class="stat-sub">ACADEMIC_BOARD_APPROVED</div>
+            </div>
+            <div class="stat-cell">
+                <div class="stat-label">中文 MPC</div>
+                <div class="stat-value" style="color:var(--gold);" id="stat-mpc-zh">—</div>
+                <div class="stat-sub">ZH 媒体代表</div>
+            </div>
+            <div class="stat-cell">
+                <div class="stat-label">英文 MPC</div>
+                <div class="stat-value" style="color:var(--purple);" id="stat-mpc-en">—</div>
+                <div class="stat-sub">EN 媒体代表</div>
+            </div>
+        </div>
+
+        <div class="list-header">
+            <div style="display:flex;align-items:center;gap:10px;">
+                <div class="view-tab-group">
+                    <button class="view-tab active" id="vtab-delegate" onclick="switchView('delegate')">代表名单</button>
+                    <button class="view-tab" id="vtab-delegation" onclick="switchView('delegation')">代表团名单</button>
+                </div>
+                <div class="sort-mode-badge" id="sort-badge">报名顺序</div>
+            </div>
+            <div class="result-count" id="result-count">共展示 — 条</div>
+        </div>
+
+        <div class="delegates-container" id="delegate-list">
+            <div class="loading-state">
+                <div class="loading-spinner"></div>
+                正在从服务器加载代表数据…
+            </div>
+        </div>
+        <div class="empty-state" id="empty-state"><div class="big">🔍</div>当前筛选条件下没有符合的代表</div>
+        <div class="pagination-bar" id="pagination"></div>
+
+        <!-- 代表团名单容器 -->
+        <div id="delegation-list" style="display:none;padding:16px 20px;">
+            <div class="loading-state"><div class="loading-spinner"></div>正在加载代表团数据…</div>
+        </div>
+        <div class="empty-state" id="dgn-empty-state" style="display:none;"><div class="big">🏫</div>没有符合筛选条件的代表团</div>
+    </div>
+</div>
+
+<script>
+
+    // 【Bug Fix - v1.7】会场英文 value → 中文显示名称映射
+    const COMMITTEE_ZH = {
+        'linked-system':         '联动系统',
+        'linked-system-mpc':     '联动系统（MPC）',
+        'chinese-committee':     '联大三委',
+        'chinese-committee-mpc': '联大三委（MPC）',
+        'icj':                   '国际法庭',
+        'icj-mpc':               '国际法庭（MPC）',
+        'english-committee':     '英文常委',
+        'english-committee-mpc': '英文常委（MPC）',
+    };
+    function zhCommittee(val) {
+        if (!val || val === '-') return val || '-';
+        return COMMITTEE_ZH[val] || val;
+    }
+    /* ════════════════════════════════════════════════════════
+       ① 会场配置（变量驱动 — 修改此处即全局同步）
+       order 决定字母排序优先级；isMpc=true 表示可兼任
+    ════════════════════════════════════════════════════════ */
+    const COMMITTEES = {
+        'linked-system':         { label: '联动系统',        color: '#ffd166', order: 0, isMpc: false },
+        'english-committee':     { label: '英文常委',        color: '#a29bfe', order: 1, isMpc: false },
+        'icj':                   { label: '国际法庭 (ICJ)', color: '#06d6a0', order: 2, isMpc: false },
+        'chinese-committee':     { label: '联大三委',        color: '#74b9ff', order: 3, isMpc: false },
+        'linked-system-mpc':     { label: '联动系统（MPC）', color: '#ffd166', order: 4, isMpc: true  },
+        'chinese-committee-mpc': { label: '联大三委（MPC）', color: '#74b9ff', order: 5, isMpc: true  },
+        'icj-mpc':               { label: '国际法庭（MPC）', color: '#06d6a0', order: 6, isMpc: true  },
+        'english-committee-mpc': { label: '英文常委（MPC）', color: '#a29bfe', order: 7, isMpc: true  },
+    };
+
+    /* ════════════════════════════════════════════════════════
+       ② 状态配置
+       注意：后端终审通过状态为 ACADEMIC_BOARD_APPROVED（不是 BOARD_APPROVED）
+       驳回状态格式：REJECTED 或 REJECTED:理由，用 startsWith 判断
+    ════════════════════════════════════════════════════════ */
+    const STATUS_CFG = {
+        'PENDING':                  { label: '待审核',     cls: 's-pending'  },
+        'LEADER_APPROVED':          { label: '领队通过',   cls: 's-leader-ok'},
+        'ACADEMIC_BOARD_APPROVED':  { label: '学委通过',   cls: 's-approved' },
+        'REJECTED':                 { label: '已驳回',     cls: 's-rejected' },
+    };
+    function getStatusCfg(rawStatus) {
+        if (!rawStatus) return STATUS_CFG['PENDING'];
+        if (rawStatus.startsWith('REJECTED')) return STATUS_CFG['REJECTED'];
+        return STATUS_CFG[rawStatus] || STATUS_CFG['PENDING'];
+    }
+
+    /* ════════════════════════════════════════════════════════
+       ③ 应用状态
+    ════════════════════════════════════════════════════════ */
+    let allDelegates = []; // 从后端拉取的原始数组（标准化后）
+    let state = { priority: 'TIME', prefs: [], committees: [], paymentFilter: [], page: 1, pageSize: 15 };
+    let pendingRejectId = null; // 待驳回的代表 id
+
+    /* ════════════════════════════════════════════════════════
+       ④ 后端数据规范化
+       将后端 Delegate 字段映射为前端统一格式
+       时间排序代理：用 id 大小（id 越小 = 报名越早）
+    ════════════════════════════════════════════════════════ */
+    function normalize(d) {
+        // 【#028】MPC 全志愿扫描：独立检测中文MPC和英文MPC，支持双修并列
+        const prefs = [d.committeePref1, d.committeePref2, d.committeePref3];
+        // 中文MPC：联动系统MPC / 联大三委（GA3）MPC / 国际法庭MPC
+        const ZH_MPC_VALS = ['linked-system-mpc', 'chinese-committee-mpc', 'icj-mpc'];
+        // 英文MPC：仅英文常委MPC
+        const EN_MPC_VAL  = 'english-committee-mpc';
+        const mpcZh = prefs.some(p => ZH_MPC_VALS.includes(p));
+        const mpcEn = prefs.some(p => p === EN_MPC_VAL);
+        // 兼容旧的 mpc 字段（供筛选引擎 committeeMatches 使用）
+        const mpc   = prefs.find(p => p && p.includes('-mpc')) || null;
+
+        return {
+            id:         d.id,
+            name:       d.realName         || '（未填写）',
+            school:     d.school           || '—',
+            grade:      d.grade            || '—',
+            gender:     d.gender           || '—',
+            wechat:     d.wechat           || '—',
+            phone:      d.phone            || '—',
+            email:      d.email            || '—',
+            pref1:      d.committeePref1   || null,
+            pref2:      d.committeePref2   || null,
+            pref3:      d.committeePref3   || null,
+            mpc:        mpc,
+            mpcZh:      mpcZh,
+            mpcEn:      mpcEn,
+            assigned:   d.assignedCommittee || null,  // 【#030】最终录取会场 Key
+            status:     d.status           || 'PENDING',
+            academic:   d.academicExperience || '（未填写）',
+            ec1_name:   d.emergencyContact1Name         || '—',
+            ec1_rel:    d.emergencyContact1Relationship || '—',
+            ec1_phone:  d.emergencyContact1Phone        || '—',
+            ec2_name:   d.emergencyContact2Name         || '—',
+            ec2_rel:    d.emergencyContact2Relationship || '—',
+            ec2_phone:  d.emergencyContact2Phone        || '—',
+            // 【付款凭证 Step 5】C-08 约束：null 等价于 NOT_SUBMITTED
+            paymentStatus: d.paymentStatus || 'NOT_SUBMITTED',
+        };
+    }
+
+    /* ════════════════════════════════════════════════════════
+       ⑤ 加载数据（真实 API）
+    ════════════════════════════════════════════════════════ */
+    /* 【#050】管理员 JWT 工具函数，取代原 mun_admin_id 裸ID鉴权 */
+    function getAdminJwt() { return sessionStorage.getItem('mun_admin_jwt') || ''; }
+
+    async function loadData() {
+        try {
+            const res = await fetch('/api/delegate/admin/list', {
+                headers: { 'Authorization': 'Bearer ' + getAdminJwt() }
+            });
+            if (res.status === 403) {
+                document.getElementById('delegate-list').innerHTML =
+                    '<div class="loading-state" style="color:var(--red);">⚠ 权限不足，请用管理员账号重新登录</div>';
+                return;
+            }
+            const raw = await res.json();
+            allDelegates = raw.map(normalize);
+            updateStats();
+            render();
+        } catch (e) {
+            document.getElementById('delegate-list').innerHTML =
+                '<div class="loading-state" style="color:var(--red);">⚠ 网络异常，无法连接后端服务<br><small style="color:var(--muted);margin-top:6px;display:block;">请确认 Spring Boot 已在 :8081 正常运行</small></div>';
+        }
+    }
+
+    async function updateStats() {
+        try {
+            const res = await fetch('/api/delegate/admin/stats', {
+                headers: { 'Authorization': 'Bearer ' + getAdminJwt() }
+            });
+            if (!res.ok) return;
+            const s = await res.json();
+            document.getElementById('stat-total').textContent  = s.total;
+            document.getElementById('stat-quota').textContent  = '已报名代表';
+            document.getElementById('stat-leader').textContent = s.statusCounts?.LEADER_APPROVED ?? 0;
+            document.getElementById('stat-board').textContent  = s.statusCounts?.ACADEMIC_BOARD_APPROVED ?? 0;
+            document.getElementById('stat-mpc-zh').textContent = s.mpcZhCount ?? 0;
+            document.getElementById('stat-mpc-en').textContent = s.mpcEnCount ?? 0;
+        } catch (e) { /* 统计失败不阻塞列表 */ }
+    }
+
+    /* ════════════════════════════════════════════════════════
+       ⑥ 志愿顺位起点逻辑（与上版一致）
+    ════════════════════════════════════════════════════════ */
+    function getActivePrefOrder() {
+        if (state.prefs.length === 0) return [1, 2, 3];
+        const minPref = Math.min(...state.prefs);
+        const order = [];
+        for (let p = minPref; p <= 3; p++) {
+            if (state.prefs.includes(p) || state.prefs.length === 0) order.push(p);
+        }
+        return order;
+    }
+
+    /* ════════════════════════════════════════════════════════
+       ⑦ 筛选 + 排序引擎
+    ════════════════════════════════════════════════════════ */
+    const cOrder = c => COMMITTEES[c]?.order ?? 99;
+    // 时间代理：id 越小 = 报名越早（数据库自增主键）
+    const getSeq = d => d.id;
+
+    function committeeMatches(d) {
+        if (state.committees.length === 0) return true;
+        return state.committees.some(c => {
+            if (COMMITTEES[c]?.isMpc) return d.mpc === c;
+            return d.pref1 === c || d.pref2 === c || d.pref3 === c;
+        });
+    }
+    function prefMatches(d) {
+        if (state.prefs.length === 0) return true;
+        const activePrefOrder = getActivePrefOrder();
+        return activePrefOrder.some(p => {
+            const pkey = ['pref1','pref2','pref3'][p-1];
+            if (state.committees.length > 0)
+                return state.committees.some(c => COMMITTEES[c]?.isMpc ? d.mpc===c : d[pkey]===c);
+            return true;
+        });
+    }
+
+    /* 【付款凭证 Step 5】付款凭证状态筛选（C-07 约束：与其余筛选 AND 关系，独立函数） */
+    function paymentMatches(d) {
+        if (state.paymentFilter.length === 0) return true;
+        return state.paymentFilter.includes(d.paymentStatus || 'NOT_SUBMITTED');
+    }
+
+    function getFilteredSorted() {
+        let data = allDelegates.filter(d => committeeMatches(d) && prefMatches(d) && paymentMatches(d));
+        const activePrefOrder = getActivePrefOrder();
+
+        if (state.priority === 'TIME') {
+            data.sort((a,b) => getSeq(a) - getSeq(b));
+
+        } else if (state.priority === 'VOLUNTEER') {
+            const getPrefRank = (d) => {
+                for (let i = 0; i < activePrefOrder.length; i++) {
+                    const p = activePrefOrder[i];
+                    const pkey = ['pref1','pref2','pref3'][p-1];
+                    if (state.committees.length === 0) return i;
+                    if (state.committees.some(c => COMMITTEES[c]?.isMpc ? d.mpc===c : d[pkey]===c)) return i;
+                }
+                return 99;
+            };
+            const getLeadC = (d) => {
+                const rank = getPrefRank(d);
+                if (rank === 99) return null;
+                return d[['pref1','pref2','pref3'][activePrefOrder[rank]-1]];
+            };
+            data.sort((a,b) => {
+                const ra = getPrefRank(a), rb = getPrefRank(b);
+                if (ra !== rb) return ra - rb;
+                const ca = getLeadC(a), cb = getLeadC(b);
+                if (cOrder(ca) !== cOrder(cb)) return cOrder(ca) - cOrder(cb);
+                return getSeq(a) - getSeq(b);
+            });
+
+        } else if (state.priority === 'COMMITTEE') {
+            const activeCommittees = state.committees.length > 0
+                ? [...state.committees].sort((x,y) => cOrder(x)-cOrder(y))
+                : Object.keys(COMMITTEES).sort((x,y) => cOrder(x)-cOrder(y));
+            const prefRankForC = (d, c) => {
+                if (COMMITTEES[c]?.isMpc) return d.mpc === c ? 0 : 99;
+                const ap = getActivePrefOrder();
+                for (let i=0; i<ap.length; i++) {
+                    if (d[['pref1','pref2','pref3'][ap[i]-1]] === c) return i;
+                }
+                return 99;
+            };
+            const leadC = (d) => {
+                for (const c of activeCommittees) {
+                    if (COMMITTEES[c]?.isMpc ? d.mpc===c : [d.pref1,d.pref2,d.pref3].includes(c)) return c;
+                }
+                return activeCommittees[0];
+            };
+            data.sort((a,b) => {
+                const ca = leadC(a), cb = leadC(b);
+                if (cOrder(ca) !== cOrder(cb)) return cOrder(ca) - cOrder(cb);
+                const ra = prefRankForC(a,ca), rb = prefRankForC(b,cb);
+                if (ra !== rb) return ra - rb;
+                return getSeq(a) - getSeq(b);
+            });
+        }
+        return data;
+    }
+
+    /* ════════════════════════════════════════════════════════
+       ⑧ 渲染工具函数
+    ════════════════════════════════════════════════════════ */
+    function prefPillHtml(rank, committee) {
+        if (!committee) return '';
+        const cls = `p${rank}`;
+        const rankLabel = ['1st','2nd','3rd'][rank-1];
+        const cInfo = COMMITTEES[committee];
+        const dot = cInfo ? `<span style="width:6px;height:6px;border-radius:50%;background:${cInfo.color};display:inline-block;flex-shrink:0;"></span>` : '';
+        const label = cInfo ? cInfo.label : committee;
+        return `<span class="pref-pill ${cls}">${dot} ${rankLabel}: ${label}</span>`;
+    }
+    function maskPhone(phone) {
+        if (!phone || phone === '—') return '—';
+        if (phone.length >= 8) return phone.slice(0,3) + '****' + phone.slice(7);
+        return phone;
+    }
+    function groupSepHtml(label) {
+        return `<div class="group-separator"><div class="gs-line"></div><div class="gs-label">${label}</div><div class="gs-line"></div></div>`;
+    }
+    function esc(s) {
+        return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    /* ════════════════════════════════════════════════════════
+       ⑧-B MPC 勋章生成（#028 新增）
+       规则：
+         · 中文MPC：任一志愿 ∈ {linked-system-mpc, chinese-committee-mpc, icj-mpc}
+         · 英文MPC：任一志愿 = english-committee-mpc
+         · 双修：两者同时为 true → 并列显示 [MPC·中] [MPC·EN]
+    ════════════════════════════════════════════════════════ */
+    function getMpcBadges(d) {
+        let html = '';
+        if (d.mpcZh) html += '<span class="mpc-pill mpc-pill-zh ms-1">MPC·中</span>';
+        if (d.mpcEn) html += '<span class="mpc-pill mpc-pill-en ms-1">MPC·EN</span>';
+        return html;
+    }
+
+    /* ════════════════════════════════════════════════════════
+       ⑨ 渲染单张代表卡片
+    ════════════════════════════════════════════════════════ */
+    // 代表团视图内嵌版代表卡片，使用 uid='m'+d.id 避免与顶层 ID 冲突
+    function renderMemberCard(d, idx) {
+        const uid = 'm' + d.id;  // 命名空间：m9, m12 …
+        const sc = getStatusCfg(d.status);
+        const mpcBadges = getMpcBadges(d);
+        const seqLabel = `#${String(idx).padStart(2,'0')}`;
+        const ec1Label = [d.ec1_name, d.ec1_rel].filter(x=>x&&x!=='—').join(' · ');
+        const ec2Label = [d.ec2_name, d.ec2_rel].filter(x=>x&&x!=='—').join(' · ');
+
+        const payBadge = (()=>{
+            const pc={'NOT_SUBMITTED':{cls:'pay-none',lbl:'⚪ 未交凭证'},'PENDING_REVIEW':{cls:'pay-pending',lbl:'⏳ 凭证待审'},'VERIFIED':{cls:'pay-ok',lbl:'✅ 凭证通过'}};
+            const p=pc[d.paymentStatus]||pc['NOT_SUBMITTED'];
+            return `<span class="payment-badge ${p.cls}">${p.lbl}</span>`;
+        })();
+
+        return `
+<div class="delegate-card" id="dc-${uid}">
+  <div class="card-main" onclick="toggleDetail('${uid}')">
+    <div class="row-index">${seqLabel}</div>
+    <div class="person-info">
+      <div class="person-name">${esc(d.name)} ${mpcBadges}</div>
+      <div class="person-school">${esc(d.school)} · ${esc(d.grade)}</div>
+    </div>
+    <div class="pref-area">
+      ${prefPillHtml(1,d.pref1)}
+      ${prefPillHtml(2,d.pref2)}
+      ${prefPillHtml(3,d.pref3)}
+    </div>
+    <div class="status-area">
+      <span class="status-badge ${sc.cls}">${sc.label}</span>
+      ${d.assigned ? `<span class="assigned-badge">🏛 ${COMMITTEES[d.assigned]?.label ?? d.assigned}</span>` : ''}
+      ${payBadge}
+      <span class="ts">ID #${d.id}</span>
+    </div>
+    <div class="action-area" onclick="event.stopPropagation()">
+      <button class="btn-expand" id="btn-exp-${uid}" onclick="toggleDetail('${uid}')">
+        <span id="exp-icon-${uid}">▼</span> 详情
+      </button>
+      ${d.status === 'ACADEMIC_BOARD_APPROVED'
+            ? `<button class="btn-assign" onclick="openAssignModal(${d.id})">🎯 志愿分配</button>`
+            : `<button class="btn-approve" onclick="approveDelegate(${d.id})">🏆 终审</button>`}
+    </div>
+  </div>
+  <div class="card-detail" id="detail-${uid}" style="display:none;">
+    <div class="detail-grid">
+      <div>
+        <div class="detail-section-title">👤 基础信息</div>
+        <div class="detail-field"><div class="detail-key">姓名</div><div class="detail-val">${esc(d.name)}</div></div>
+        <div class="detail-field"><div class="detail-key">性别</div><div class="detail-val">${esc(d.gender)}</div></div>
+        <div class="detail-field"><div class="detail-key">学校</div><div class="detail-val">${esc(d.school)}</div></div>
+        <div class="detail-field"><div class="detail-key">年级</div><div class="detail-val">${esc(d.grade)}</div></div>
+      </div>
+      <div>
+        <div class="detail-section-title">📡 联络方式</div>
+        <div class="detail-field">
+          <div class="detail-key">手机（点击揭开）</div>
+          <div class="detail-val phone-mask" id="ph-${uid}"
+            onclick="revealPhone('${uid}','${esc(d.phone)}')" title="点击显示完整号码">
+            ${maskPhone(d.phone)} 👁
+          </div>
+        </div>
+        <div class="detail-field"><div class="detail-key">邮箱</div><div class="detail-val">${esc(d.email)}</div></div>
+        <div class="detail-field"><div class="detail-key">微信</div><div class="detail-val">${esc(d.wechat)}</div></div>
+      </div>
+      <div>
+        <div class="detail-section-title">🆘 紧急联系人</div>
+        <div class="detail-field">
+          <div class="detail-key">联系人一（关系）</div>
+          <div class="detail-val">${esc(ec1Label) || '—'}</div>
+          <div class="detail-val" style="color:var(--muted);font-size:0.72rem;margin-top:2px;">${esc(d.ec1_phone)}</div>
+        </div>
+        <div class="detail-field">
+          <div class="detail-key">联系人二（关系）</div>
+          <div class="detail-val">${esc(ec2Label) || '—'}</div>
+          <div class="detail-val" style="color:var(--muted);font-size:0.72rem;margin-top:2px;">${esc(d.ec2_phone)}</div>
+        </div>
+      </div>
+    </div>
+    <div class="detail-academic">
+      <div class="detail-section-title">📄 学术经历 / 申请理由</div>
+      <div class="academic-text">${esc(d.academic)}</div>
+    </div>
+    <div class="detail-payment">
+      <div class="detail-section-title">💳 付款凭证</div>
+      <div style="font-size:0.78rem;color:var(--text);margin-bottom:8px;" id="pay-status-text-${uid}">
+        ${d.paymentStatus==='VERIFIED'       ? '<span style="color:var(--green)">✅ 审核通过</span>'
+            : d.paymentStatus==='PENDING_REVIEW' ? '<span style="color:var(--gold)">⏳ 已提交，等待审核</span>'
+                : '<span style="color:var(--muted)">⚪ 尚未上传</span>'}
+      </div>
+      ${d.paymentStatus !== 'NOT_SUBMITTED' ? `
+        <button class="btn-expand" style="margin-bottom:6px;" onclick="loadPaymentProof('${uid}',this)">📷 查看凭证图片</button>
+        <div id="pay-img-${uid}" style="display:none;"></div>` : ''}
+      ${d.paymentStatus === 'PENDING_REVIEW' ? `
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="btn-pay-approve" onclick="verifyPayment(${d.id})">✅ 通过凭证</button>
+          <button class="btn-pay-reject"  onclick="rejectPayment(${d.id})">❌ 驳回凭证</button>
+        </div>` : ''}
+    </div>
+    <div class="detail-actions">
+      <button class="btn-detail-reject" onclick="openRejectModal(${d.id},'${esc(d.name)}')">❌ 驳回申请</button>
+      <button class="btn-detail-approve" onclick="approveDelegate(${d.id})">🏆 最终录取（终审）</button>
+    </div>
+  </div>
+</div>`;
+    }
+
+    function renderCard(d, idx) {
+        const sc = getStatusCfg(d.status);
+        // 【#028】全志愿扫描勋章：中文金色 / 英文紫色 / 双修并列
+        const mpcBadges = getMpcBadges(d);
+        const seqLabel = `#${String(idx).padStart(2,'0')}`;
+
+        // 联系人关系格式化（含关系字段）
+        const ec1Label = [d.ec1_name, d.ec1_rel].filter(x=>x&&x!=='—').join(' · ');
+        const ec2Label = [d.ec2_name, d.ec2_rel].filter(x=>x&&x!=='—').join(' · ');
+
+        return `
+<div class="delegate-card" id="dc-${d.id}">
+  <div class="card-main" onclick="toggleDetail(${d.id})">
+    <div class="row-index">${seqLabel}</div>
+    <div class="person-info">
+      <div class="person-name">${esc(d.name)} ${mpcBadges}</div>
+      <div class="person-school">${esc(d.school)} · ${esc(d.grade)}</div>
+    </div>
+    <div class="pref-area">
+      ${prefPillHtml(1,d.pref1)}
+      ${prefPillHtml(2,d.pref2)}
+      ${prefPillHtml(3,d.pref3)}
+    </div>
+    <div class="status-area">
+      <span class="status-badge ${sc.cls}">${sc.label}</span>
+      ${d.assigned ? `<span class="assigned-badge">🏛 ${COMMITTEES[d.assigned]?.label ?? d.assigned}</span>` : ''}
+      ${(()=>{ const pc={'NOT_SUBMITTED':{cls:'pay-none',lbl:'⚪ 未交凭证'},'PENDING_REVIEW':{cls:'pay-pending',lbl:'⏳ 凭证待审'},'VERIFIED':{cls:'pay-ok',lbl:'✅ 凭证通过'}}; const p=pc[d.paymentStatus]||pc['NOT_SUBMITTED']; return `<span class="payment-badge ${p.cls}">${p.lbl}</span>`; })()}
+      <span class="ts">ID #${d.id}</span>
+    </div>
+    <div class="action-area" onclick="event.stopPropagation()">
+      <button class="btn-expand" id="btn-exp-${d.id}" onclick="toggleDetail(${d.id})">
+        <span id="exp-icon-${d.id}">▼</span> 详情
+      </button>
+      ${d.status === 'ACADEMIC_BOARD_APPROVED'
+            ? `<button class="btn-assign" onclick="openAssignModal(${d.id})">🎯 志愿分配</button>`
+            : `<button class="btn-approve" onclick="approveDelegate(${d.id})">🏆 终审</button>`}
+    </div>
+  </div>
+  <div class="card-detail" id="detail-${d.id}">
+    <div class="detail-grid">
+      <div>
+        <div class="detail-section-title">👤 基础信息</div>
+        <div class="detail-field"><div class="detail-key">姓名</div><div class="detail-val">${esc(d.name)}</div></div>
+        <div class="detail-field"><div class="detail-key">性别</div><div class="detail-val">${esc(d.gender)}</div></div>
+        <div class="detail-field"><div class="detail-key">学校</div><div class="detail-val">${esc(d.school)}</div></div>
+        <div class="detail-field"><div class="detail-key">年级</div><div class="detail-val">${esc(d.grade)}</div></div>
+      </div>
+      <div>
+        <div class="detail-section-title">📡 联络方式</div>
+        <div class="detail-field">
+          <div class="detail-key">手机（点击揭开）</div>
+          <div class="detail-val phone-mask" id="ph-${d.id}"
+            onclick="revealPhone(${d.id},'${esc(d.phone)}')" title="点击显示完整号码">
+            ${maskPhone(d.phone)} 👁
+          </div>
+        </div>
+        <div class="detail-field"><div class="detail-key">邮箱</div><div class="detail-val">${esc(d.email)}</div></div>
+        <div class="detail-field"><div class="detail-key">微信</div><div class="detail-val">${esc(d.wechat)}</div></div>
+      </div>
+      <div>
+        <div class="detail-section-title">🆘 紧急联系人</div>
+        <div class="detail-field">
+          <div class="detail-key">联系人一（关系）</div>
+          <div class="detail-val">${esc(ec1Label) || '—'}</div>
+          <div class="detail-val" style="color:var(--muted);font-size:0.72rem;margin-top:2px;">${esc(d.ec1_phone)}</div>
+        </div>
+        <div class="detail-field">
+          <div class="detail-key">联系人二（关系）</div>
+          <div class="detail-val">${esc(ec2Label) || '—'}</div>
+          <div class="detail-val" style="color:var(--muted);font-size:0.72rem;margin-top:2px;">${esc(d.ec2_phone)}</div>
+        </div>
+      </div>
+    </div>
+    <div class="detail-academic">
+      <div class="detail-section-title">📄 学术经历 / 申请理由</div>
+      <div class="academic-text">${esc(d.academic)}</div>
+    </div>
+    <!-- 【付款凭证 Step 5】付款凭证详情区 -->
+    <div class="detail-payment">
+      <div class="detail-section-title">💳 付款凭证</div>
+      <div style="font-size:0.78rem;color:var(--text);margin-bottom:8px;" id="pay-status-text-${d.id}">
+        ${ d.paymentStatus==='VERIFIED'       ? '<span style="color:var(--green)">✅ 审核通过</span>'
+            : d.paymentStatus==='PENDING_REVIEW' ? '<span style="color:var(--gold)">⏳ 已提交，等待审核</span>'
+                : '<span style="color:var(--muted)">⚪ 尚未上传</span>' }
+      </div>
+      ${ d.paymentStatus !== 'NOT_SUBMITTED' ? `
+        <button class="btn-expand" style="margin-bottom:6px;" onclick="loadPaymentProof(${d.id},this)">📷 查看凭证图片</button>
+        <div id="pay-img-${d.id}" style="display:none;"></div>` : '' }
+      ${ d.paymentStatus === 'PENDING_REVIEW' ? `
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <button class="btn-pay-approve" onclick="verifyPayment(${d.id})">✅ 通过凭证</button>
+          <button class="btn-pay-reject"  onclick="rejectPayment(${d.id})">❌ 驳回凭证</button>
+        </div>` : '' }
+    </div>
+    <div class="detail-actions">
+      <button class="btn-detail-reject" onclick="openRejectModal(${d.id},'${esc(d.name)}')">❌ 驳回申请</button>
+      <button class="btn-detail-approve" onclick="approveDelegate(${d.id})">🏆 最终录取（终审）</button>
+    </div>
+  </div>
+</div>`;
+    }
+
+    /* ════════════════════════════════════════════════════════
+       ⑩ 主渲染函数
+    ════════════════════════════════════════════════════════ */
+    function render() {
+        const sorted = getFilteredSorted();
+        const total  = sorted.length;
+        const pages  = Math.max(1, Math.ceil(total / state.pageSize));
+        if (state.page > pages) state.page = pages;
+        const slice  = sorted.slice((state.page-1)*state.pageSize, state.page*state.pageSize);
+
+        document.getElementById('result-count').textContent = `共找到 ${total} 条 · 第 ${state.page}/${pages} 页`;
+        const sortLabels = { VOLUNTEER:'志愿优先', COMMITTEE:'会场优先', TIME:'报名顺序' };
+        document.getElementById('sort-badge').textContent = sortLabels[state.priority];
+
+        let html = '';
+        if (state.priority === 'VOLUNTEER' && slice.length > 0) {
+            const activePrefOrder = getActivePrefOrder();
+            const prefLabels = {1:'第一志愿组 · 1st',2:'第二志愿组 · 2nd',3:'第三志愿组 · 3rd'};
+            const getPrefGroupIdx = (d) => {
+                for (let i=0; i<activePrefOrder.length; i++) {
+                    const p = activePrefOrder[i];
+                    const pkey = ['pref1','pref2','pref3'][p-1];
+                    if (state.committees.length===0) return i;
+                    if (state.committees.some(c=>COMMITTEES[c]?.isMpc ? d.mpc===c : d[pkey]===c)) return i;
+                }
+                return 0;
+            };
+            let lastGi = -1;
+            slice.forEach((d,i)=>{
+                const gi = getPrefGroupIdx(d);
+                if (gi !== lastGi) {
+                    html += groupSepHtml(prefLabels[activePrefOrder[gi]] || `志愿 ${activePrefOrder[gi]}`);
+                    lastGi = gi;
+                }
+                html += renderCard(d, (state.page-1)*state.pageSize + i + 1);
+            });
+        } else {
+            slice.forEach((d,i) => html += renderCard(d, (state.page-1)*state.pageSize + i + 1));
+        }
+
+        document.getElementById('delegate-list').innerHTML = html;
+        document.getElementById('empty-state').style.display = total===0 ? 'block' : 'none';
+
+        // 分页
+        let pgHtml = '';
+        if (pages > 1) {
+            pgHtml += `<button class="pg-btn" onclick="goPage(${state.page-1})" ${state.page===1?'disabled':''}>‹</button>`;
+            const s2 = Math.max(1,state.page-2), e2 = Math.min(pages,state.page+2);
+            if (s2>1) pgHtml += `<button class="pg-btn" onclick="goPage(1)">1</button>${s2>2?'<span style="color:var(--muted);padding:0 2px">…</span>':''}`;
+            for (let p=s2;p<=e2;p++) pgHtml += `<button class="pg-btn ${p===state.page?'active':''}" onclick="goPage(${p})">${p}</button>`;
+            if (e2<pages) pgHtml += `${e2<pages-1?'<span style="color:var(--muted);padding:0 2px">…</span>':''}<button class="pg-btn" onclick="goPage(${pages})">${pages}</button>`;
+            pgHtml += `<button class="pg-btn" onclick="goPage(${state.page+1})" ${state.page===pages?'disabled':''}>›</button>`;
+        }
+        document.getElementById('pagination').innerHTML = pgHtml;
+        updateSortHint();
+    }
+
+    /* ════════════════════════════════════════════════════════
+       【#041】updateSortHint — 志愿顺位提示窗口
+
+       原版仅在 VOLUNTEER 模式下展示提示，TIME / COMMITTEE 模式
+       选中 1st/2nd/3rd 后提示窗口完全不出现（Bug #041 根因）。
+
+       修复：移除 priority !== VOLUNTEER 的 return 短路，
+             按三种排序模式分别生成语义准确的提示文案。
+       ════════════════════════════════════════════════════════ */
+    function updateSortHint() {
+        const hint  = document.getElementById('sort-hint');
+        // 无志愿顺位筛选时隐藏提示（三种模式均适用）
+        if (state.prefs.length === 0) { hint.classList.remove('show'); return; }
+
+        const labels = { 1:'1st', 2:'2nd', 3:'3rd' };
+        const order  = getActivePrefOrder();
+        const prefStr = order.map(p => `<strong>${labels[p]}志愿</strong>`).join(' → ');
+
+        if (state.priority === 'VOLUNTEER') {
+            // 志愿优先：志愿顺位决定分组起点，与原版完全一致
+            hint.innerHTML = `起点：${prefStr}<br>组内：会场 A-Z → 报名顺序`;
+
+        } else if (state.priority === 'TIME') {
+            // 报名顺序：志愿顺位作为过滤维度（配合会场筛选），排序仍按报名先后
+            hint.innerHTML = `筛选：仅展示 ${prefStr} 匹配的代表<br>排序：按报名先后顺序`;
+
+        } else if (state.priority === 'COMMITTEE') {
+            // 会场优先：志愿顺位作为过滤维度，排序按会场 A-Z → 志愿权重
+            hint.innerHTML = `筛选：仅展示 ${prefStr} 匹配的代表<br>排序：会场 A-Z → 志愿权重`;
+        }
+
+        hint.classList.add('show');
+    }
+
+    /* ════════════════════════════════════════════════════════
+       ⑪ 操作函数
+    ════════════════════════════════════════════════════════ */
+    function toggleDetail(id) {
+        const detail = document.getElementById('detail-' + id);
+        const icon   = document.getElementById('exp-icon-' + id);
+        const card   = document.getElementById('dc-' + id);
+        if (!detail) return;
+        const isOpen = detail.style.display === 'block';
+        detail.style.display = isOpen ? 'none' : 'block';
+        if (card) card.classList.toggle('expanded', !isOpen);
+        if (icon) icon.textContent = isOpen ? '▼' : '▲';
+    }
+
+    function revealPhone(id, phone) {
+        const el = document.getElementById(`ph-${id}`);
+        if (!el) return;
+        el.textContent = phone + ' ✓';
+        el.style.color = 'var(--blue)'; el.onclick=null; el.style.cursor='default';
+    }
+
+    // 操作后统一刷新：代表名单 + 代表团视图（若已加载）
+    function renderAfterMutation() {
+        render(); updateStats();
+        if (currentView === 'delegation' || allDelegations.length > 0) renderDelegations();
+    }
+
+    async function approveDelegate(id) {
+        if (!confirm(`确认对 #${id} 号代表执行学术委员会终审通过？`)) return;
+        try {
+            const res = await fetch(`/api/delegate/${id}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + getAdminJwt() },
+                body: JSON.stringify({ newStatus: 'ACADEMIC_BOARD_APPROVED' })
+            });
+            if (!res.ok) { alert('操作失败：' + await res.text()); return; }
+            // 本地更新，避免重新拉取整个列表
+            const d = allDelegates.find(x=>x.id===id);
+            if (d) d.status = 'ACADEMIC_BOARD_APPROVED';
+            showToast(`✅ 代表 #${id} 已终审通过`, 'green');
+            renderAfterMutation();
+        } catch(e) { alert('网络异常，请重试'); }
+    }
+
+    // 驳回 Modal 控制
+    function openRejectModal(id, name) {
+        pendingRejectId = id;
+        document.getElementById('rejectModalSub').textContent = `代表：${name}（#${id}）· 驳回理由将通知代表及所属领队`;
+        document.getElementById('rejectReason').value = '';
+        document.getElementById('rejectModal').classList.add('show');
+        setTimeout(()=>document.getElementById('rejectReason').focus(), 50);
+    }
+    // ════════════════════════════════════════════════════════
+    //  【#031】志愿分配 Modal 逻辑
+    // ════════════════════════════════════════════════════════
+    let pendingAssignId = null;
+
+    function openAssignModal(id) {
+        pendingAssignId = id;
+        const d = allDelegates.find(x => x.id === id);
+        if (!d) return;
+
+        document.getElementById('assignModalSub').textContent =
+            `代表：${d.name}（#${id}）· 请选择最终录取会场`;
+        document.getElementById('assignResetCheck').checked = false;
+
+        // 动态生成 8 个会场单选框
+        const keys = Object.keys(COMMITTEES);
+        const optHtml = keys.map(k => {
+            const c = COMMITTEES[k];
+            const checked = d.assigned === k ? 'checked' : '';
+            return `<label style="display:flex;align-items:center;gap:7px;padding:7px 10px;
+                border-radius:7px;border:1px solid var(--border);cursor:pointer;
+                background:var(--panel);transition:background .15s;font-size:0.78rem;">
+                <input type="radio" name="assignRadio" value="${k}" ${checked}
+                    style="accent-color:${c.color};">
+                <span style="color:${c.color};">${c.label}</span>
+            </label>`;
+        }).join('');
+        document.getElementById('assignOptions').innerHTML = optHtml;
+
+        document.getElementById('assignModal').classList.add('show');
+    }
+
+    function closeAssignModal() {
+        document.getElementById('assignModal').classList.remove('show');
+        pendingAssignId = null;
+    }
+
+    async function confirmAssign() {
+        const id = pendingAssignId;
+        if (!id) return;
+
+        const isReset = document.getElementById('assignResetCheck').checked;
+        let committeeKey = null;
+
+        if (!isReset) {
+            const selected = document.querySelector('input[name="assignRadio"]:checked');
+            if (!selected) { alert('请选择一个会场，或勾选"撤回分配"'); return; }
+            committeeKey = selected.value;
+        }
+
+        closeAssignModal();
+
+        try {
+            const res = await fetch(`/api/delegate/${id}/assign-committee`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAdminJwt() },
+                body: JSON.stringify({ committeeKey: committeeKey })
+            });
+            if (!res.ok) { alert('分配失败：' + await res.text()); return; }
+
+            // 本地内存即时更新，无需刷新整个列表
+            const d = allDelegates.find(x => x.id === id);
+            if (d) d.assigned = committeeKey;
+
+            const label = committeeKey ? COMMITTEES[committeeKey]?.label : '（已撤回）';
+            showToast(committeeKey
+                ? `✅ 已将 #${id} 分配至 ${label}`
+                : `↩ 已撤回 #${id} 的会场分配`, 'green');
+            renderAfterMutation();
+        } catch (e) { alert('网络异常，请重试'); }
+    }
+
+    // 点击遮罩关闭分配 Modal
+    document.getElementById('assignModal').addEventListener('click', function(e) {
+        if (e.target === this) closeAssignModal();
+    });
+
+    function closeRejectModal() {
+        document.getElementById('rejectModal').classList.remove('show');
+        pendingRejectId = null;
+    }
+    async function confirmReject() {
+        const reason = document.getElementById('rejectReason').value.trim();
+        if (!reason) { document.getElementById('rejectReason').style.borderColor='var(--red)'; return; }
+        const id = pendingRejectId;
+        closeRejectModal();
+        try {
+            const res = await fetch(`/api/delegate/${id}/status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type':'application/json', 'Authorization': 'Bearer ' + getAdminJwt() },
+                body: JSON.stringify({ newStatus: 'REJECTED', rejectReason: reason })
+            });
+            if (!res.ok) { alert('操作失败：' + await res.text()); return; }
+            const d = allDelegates.find(x=>x.id===id);
+            if (d) d.status = 'REJECTED:' + reason;
+            showToast(`❌ 代表 #${id} 已驳回`, 'red');
+            renderAfterMutation();
+        } catch(e) { alert('网络异常，请重试'); }
+    }
+    // 点击遮罩关闭 Modal
+    document.getElementById('rejectModal').addEventListener('click', function(e){
+        if (e.target === this) closeRejectModal();
+    });
+
+    /* ════════════════════════════════════════════════════════
+       ⑫ 导出 Excel（SheetJS）
+       包含所有字段，含新增的 school / wechat / relationship
+    ════════════════════════════════════════════════════════ */
+    function exportExcel() {
+        const sorted = getFilteredSorted();
+        if (sorted.length === 0) { alert('当前筛选条件下没有数据可导出'); return; }
+        const rows = sorted.map((d,i) => ({
+            '序号':             i+1,
+            '报名ID':           d.id,
+            '姓名':             d.name,
+            '性别':             d.gender,
+            '学校':             d.school,
+            '年级':             d.grade,
+            '微信':             d.wechat,
+            '手机':             d.phone,
+            '邮箱':             d.email,
+            '第一志愿':         COMMITTEES[d.pref1]?.label ?? d.pref1 ?? '—',
+            '第二志愿':         COMMITTEES[d.pref2]?.label ?? d.pref2 ?? '—',
+            '第三志愿':         COMMITTEES[d.pref3]?.label ?? d.pref3 ?? '—',
+            'MPC':              d.mpc ? COMMITTEES[d.mpc]?.label : '—',
+            '审核状态':         getStatusCfg(d.status).label,
+            '紧急联系人一':     [d.ec1_name, d.ec1_rel].filter(x=>x&&x!=='—').join(' · '),
+            '紧急联系人一电话': d.ec1_phone,
+            '紧急联系人二':     [d.ec2_name, d.ec2_rel].filter(x=>x&&x!=='—').join(' · '),
+            '紧急联系人二电话': d.ec2_phone,
+            '学术经历':         d.academic,
+        }));
+        const ws  = XLSX.utils.json_to_sheet(rows);
+        const wb  = XLSX.utils.book_new();
+        ws['!cols'] = [5,8,10,6,18,7,14,14,22,12,12,12,10,10,16,14,16,14,40].map(w=>({wch:w}));
+        const sortLabel = {VOLUNTEER:'志愿优先',COMMITTEE:'会场优先',TIME:'报名顺序'}[state.priority];
+        const prefLabel = state.prefs.length>0 ? `_志愿${state.prefs.join('')}` : '';
+        const commLabel = state.committees.length>0 ? `_${state.committees.map(c=>COMMITTEES[c]?.label??c).join('+')}` : '';
+        const date = new Date().toLocaleDateString('zh-CN').replace(/\//g,'');
+        const fileName = `AIMUNC2026_代表名单_${sortLabel}${prefLabel}${commLabel}_${date}.xlsx`;
+        XLSX.utils.book_append_sheet(wb, ws, '代表名单');
+        XLSX.writeFile(wb, fileName);
+        showToast(`✅ 已导出 ${sorted.length} 条代表数据`, 'green');
+    }
+
+    /* ════════════════════════════════════════════════════════
+       ⑬ 通用 Toast
+    ════════════════════════════════════════════════════════ */
+    function showToast(msg, color) {
+        const t = document.getElementById('exportToast');
+        const c = color === 'green' ? 'rgba(6,214,160,' : 'rgba(239,71,111,';
+        t.style.background = `${c}0.15)`;
+        t.style.border     = `1px solid ${c}0.4)`;
+        t.style.color      = color === 'green' ? 'var(--green)' : 'var(--red)';
+        t.textContent = msg;
+        t.classList.add('show');
+        setTimeout(()=>t.classList.remove('show'), 2800);
+    }
+
+    /* ════════════════════════════════════════════════════════
+       ⑭ 筛选控件交互
+    ════════════════════════════════════════════════════════ */
+    function setPriority(mode, btn) {
+        state.priority=mode; state.page=1;
+        document.querySelectorAll('.priority-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active'); render();
+    }
+    function togglePref(n, el) {
+        el.classList.toggle('active');
+        if (el.classList.contains('active')) { if(!state.prefs.includes(n)) state.prefs.push(n); }
+        else { state.prefs=state.prefs.filter(x=>x!==n); }
+        state.page=1; render();
+    }
+    function toggleCommittee(c, el) {
+        el.classList.toggle('active');
+        if (el.classList.contains('active')) { if(!state.committees.includes(c)) state.committees.push(c); }
+        else { state.committees=state.committees.filter(x=>x!==c); }
+        state.page=1; render();
+    }
+    function clearAllFilters() {
+        state.prefs=[]; state.committees=[]; state.priority='TIME';
+        // 【付款凭证 Step 5】同步重置付款筛选状态
+        state.paymentFilter=[]; state.page=1;
+        document.querySelectorAll('.pref-chip').forEach(el=>el.classList.remove('active'));
+        document.querySelectorAll('.committee-item').forEach(el=>el.classList.remove('active'));
+        document.querySelectorAll('.priority-btn').forEach(b=>b.classList.remove('active'));
+        document.querySelectorAll('.pay-filter-btn').forEach(el=>el.classList.remove('active'));
+        document.getElementById('pb-time').classList.add('active');
+        render();
+    }
+    function goPage(p) {
+        const sorted=getFilteredSorted(); const pages=Math.ceil(sorted.length/state.pageSize);
+        if(p<1||p>pages) return; state.page=p; render();
+        document.querySelector('.main').scrollTo({top:0,behavior:'smooth'});
+    }
+    /* ════════════════════════════════════════════════════════
+       【付款凭证 Step 5】付款凭证相关操作函数
+    ════════════════════════════════════════════════════════ */
+
+    /** 点击"查看凭证图片"——fetch + Blob URL，携带 X-Admin-Id 请求头（C-03 约束） */
+    async function loadPaymentProof(delegateId, btn) {
+        // delegateId 可能是前缀形式（如 'dg9'），提取纯数字部分用于 API
+        const numericId = String(delegateId).replace(/\D/g, '');
+        const container = document.getElementById('pay-img-' + delegateId);
+        if (container.style.display === 'block') {
+            container.style.display = 'none';
+            btn.textContent = '📷 查看凭证图片';
+            return;
+        }
+        btn.textContent = '⏳ 加载中...';
+        try {
+            const res = await fetch(`/api/delegate/${numericId}/payment-proof`, {
+                headers: { 'Authorization': 'Bearer ' + getAdminJwt() }
+            });
+            if (!res.ok) {
+                const msg = await res.text();
+                showToast('⚠️ 加载失败：' + msg, 'red');
+                btn.textContent = '📷 查看凭证图片';
+                return;
+            }
+            const blob = await res.blob();
+            const url  = URL.createObjectURL(blob);
+            container.innerHTML = `<img class="pay-proof-img" src="${url}" alt="付款凭证"
+                onclick="window.open(this.src,'_blank')" title="点击新标签页查看原图"
+                onload="URL.revokeObjectURL('${url}')" />`;
+            container.style.display = 'block';
+            btn.textContent = '🔼 收起图片';
+        } catch(e) {
+            showToast('网络错误，无法加载凭证图片', 'red');
+            btn.textContent = '📷 查看凭证图片';
+        }
+    }
+
+    /** Admin 通过付款凭证 → VERIFIED */
+    async function verifyPayment(delegateId) {
+        if (!confirm('确认通过该代表的付款凭证？')) return;
+        try {
+            const res = await fetch(`/api/delegate/${delegateId}/payment-status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAdminJwt() },
+                body: JSON.stringify({ newPaymentStatus: 'VERIFIED' })
+            });
+            if (res.ok) {
+                // 本地更新内存数据，无需重新拉取列表
+                const d = allDelegates.find(x => x.id === delegateId);
+                if (d) d.paymentStatus = 'VERIFIED';
+                showToast('✅ 付款凭证已通过', 'green');
+                render();
+            } else {
+                const msg = await res.text();
+                showToast('⚠️ 操作失败：' + msg, 'red');
+            }
+        } catch(e) { showToast('网络错误', 'red'); }
+    }
+
+    /** Admin 驳回付款凭证 → NOT_SUBMITTED（文件保留，代表可重传） */
+    async function rejectPayment(delegateId) {
+        if (!confirm('确认驳回该代表的付款凭证？\n驳回后代表可重新上传。')) return;
+        try {
+            const res = await fetch(`/api/delegate/${delegateId}/payment-status`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + getAdminJwt() },
+                body: JSON.stringify({ newPaymentStatus: 'NOT_SUBMITTED' })
+            });
+            if (res.ok) {
+                const d = allDelegates.find(x => x.id === delegateId);
+                if (d) d.paymentStatus = 'NOT_SUBMITTED';
+                showToast('❌ 付款凭证已驳回，代表可重新上传', 'red');
+                render();
+            } else {
+                const msg = await res.text();
+                showToast('⚠️ 操作失败：' + msg, 'red');
+            }
+        } catch(e) { showToast('网络错误', 'red'); }
+    }
+
+    /** 【付款凭证 Step 5】付款筛选切换（参照 togglePref() 实现） */
+    function togglePayFilter(val, btn) {
+        btn.classList.toggle('active');
+        if (btn.classList.contains('active')) {
+            if (!state.paymentFilter.includes(val)) state.paymentFilter.push(val);
+        } else {
+            state.paymentFilter = state.paymentFilter.filter(x => x !== val);
+        }
+        state.page = 1; render();
+    }
+
+    function signOut() {
+        // 【#060】清除所有身份凭证（sessionStorage），主题偏好保留
+        MunSession.clearAuth();
+        location.href='admin-login.html';
+    }
+
+    /* ════════════════════════════════════════════════════════
+       ⑮ 初始化
+    ════════════════════════════════════════════════════════ */
+    // 【#050】权限预检：改为检查 mun_admin_jwt 是否存在（原 adminId 变量已废弃）
+    // mun_admin_role 保留作为前端快速角色标签，mun_admin_jwt 才是真正的鉴权凭证
+    if (!getAdminJwt() || sessionStorage.getItem('mun_admin_role') !== 'ADMIN') {
+        location.href = 'admin-login.html';
+    }
+    // 显示登录账号
+    document.getElementById('adminUsername').textContent =
+        sessionStorage.getItem('mun_admin_username') || 'admin';
+
+    // 动态渲染会场列表（变量驱动）
+    function initCommitteeList() {
+        const normalKeys = Object.keys(COMMITTEES).filter(k=>!COMMITTEES[k].isMpc).sort((a,b)=>COMMITTEES[a].order-COMMITTEES[b].order);
+        const mpcKeys    = Object.keys(COMMITTEES).filter(k=>COMMITTEES[k].isMpc);
+        let html = '';
+        normalKeys.forEach(k=>{
+            const c = COMMITTEES[k];
+            html += `<div class="committee-item" id="ci-${k}" onclick="toggleCommittee('${k}',this)">
+      <div class="c-dot" style="background:${c.color};border-radius:2px;"></div>
+      <div class="c-name">${c.label}</div><div class="c-check">✓</div></div>`;
+        });
+        html += `<div class="mpc-divider">— MPC 媒体中心 —</div>`;
+        mpcKeys.forEach(k=>{
+            const c = COMMITTEES[k];
+            html += `<div class="committee-item" id="ci-${k}" onclick="toggleCommittee('${k}',this)">
+      <div class="c-dot" style="background:${c.color};border-radius:50%;"></div>
+      <div class="c-name">${c.label} <span style="font-size:0.62rem;color:${c.color};opacity:.7;">(可兼任)</span></div>
+      <div class="c-check">✓</div></div>`;
+        });
+        document.getElementById('committee-list').innerHTML = html;
+    }
+
+
+    /* ════════════════════════════════════════════════════════
+       ⑯ 代表团视图
+    ════════════════════════════════════════════════════════ */
+    let currentView = 'delegate';   // 'delegate' | 'delegation'
+    let allDelegations = [];         // 从后端拉取的代表团原始数组
+    let dgnState = { search: '', filters: [] }; // applied | paid | approved
+
+    /** 切换视图 */
+    function switchView(view) {
+        currentView = view;
+        const isDelegate = view === 'delegate';
+
+        document.getElementById('vtab-delegate').classList.toggle('active', isDelegate);
+        document.getElementById('vtab-delegation').classList.toggle('active', !isDelegate);
+        document.getElementById('sidebar-delegate').style.display   = isDelegate ? 'flex' : 'none';
+        document.getElementById('sidebar-delegation').style.display = isDelegate ? 'none'  : 'flex';
+        document.getElementById('delegate-list').style.display  = isDelegate ? '' : 'none';
+        document.getElementById('empty-state').style.display    = isDelegate ? '' : 'none';
+        document.getElementById('pagination').style.display     = isDelegate ? '' : 'none';
+        document.getElementById('sort-badge').style.display     = isDelegate ? '' : 'none';
+        document.getElementById('delegation-list').style.display = isDelegate ? 'none' : '';
+
+        if (!isDelegate) {
+            if (allDelegations.length === 0) loadDelegations();
+            else renderDelegations();
+        }
+    }
+
+    /** 拉取代表团数据 */
+    async function loadDelegations() {
+        document.getElementById('delegation-list').innerHTML =
+            '<div class="loading-state"><div class="loading-spinner"></div>正在加载代表团数据…</div>';
+        try {
+            const res = await fetch('/api/delegation/admin/list', {
+                headers: { 'Authorization': 'Bearer ' + getAdminJwt() }
+            });
+            if (res.status === 403) {
+                document.getElementById('delegation-list').innerHTML =
+                    '<div class="loading-state" style="color:var(--red);">⚠ 权限不足</div>';
+                return;
+            }
+            allDelegations = await res.json();
+            // 按 id 升序（报名时间先后）
+            allDelegations.sort((a, b) => a.id - b.id);
+            renderDelegations();
+        } catch(e) {
+            document.getElementById('delegation-list').innerHTML =
+                '<div class="loading-state" style="color:var(--red);">⚠ 网络异常，无法加载代表团数据</div>';
+        }
+    }
+
+    /** 代表团筛选 */
+    function toggleDgnFilter(key, btn) {
+        btn.classList.toggle('active');
+        if (btn.classList.contains('active')) {
+            if (!dgnState.filters.includes(key)) dgnState.filters.push(key);
+        } else {
+            dgnState.filters = dgnState.filters.filter(k => k !== key);
+        }
+        renderDelegations();
+    }
+
+    function dgnApplyFilters() {
+        dgnState.search = document.getElementById('dgnSearch').value.trim().toLowerCase();
+        renderDelegations();
+    }
+
+    function clearDgnFilters() {
+        dgnState = { search: '', filters: [] };
+        document.getElementById('dgnSearch').value = '';
+        document.querySelectorAll('#dgn-f-applied,#dgn-f-paid,#dgn-f-approved')
+            .forEach(b => b.classList.remove('active'));
+        renderDelegations();
+    }
+
+    /** 渲染代表团列表 */
+    function renderDelegations() {
+        let data = allDelegations.filter(dgn => {
+            // 学校名模糊搜索
+            if (dgnState.search) {
+                const haystack = ((dgn.name || '') + ' ' + (dgn.schoolName || '')).toLowerCase();
+                if (!haystack.includes(dgnState.search)) return false;
+            }
+            // 完成度筛选（AND 关系）
+            if (dgnState.filters.includes('applied')  && !dgn.allApplied)  return false;
+            if (dgnState.filters.includes('paid')     && !dgn.allPaid)     return false;
+            if (dgnState.filters.includes('approved') && !dgn.allApproved) return false;
+            return true;
+        });
+
+        const listEl  = document.getElementById('delegation-list');
+        const emptyEl = document.getElementById('dgn-empty-state');
+
+        document.getElementById('result-count').textContent = `共 ${data.length} 个代表团`;
+
+        if (data.length === 0) {
+            listEl.style.display  = 'none';
+            emptyEl.style.display = '';
+            return;
+        }
+        listEl.style.display  = '';
+        emptyEl.style.display = 'none';
+
+        listEl.innerHTML = data.map((dgn, idx) => renderDgnCard(dgn, idx + 1)).join('');
+    }
+
+    /** 渲染单张代表团卡片 */
+    function renderDgnCard(dgn, idx) {
+        const appliedFlag  = `<span class="dgn-flag ${dgn.allApplied  ? 'done' : 'pend'}">${dgn.allApplied  ? '✅ 全员报名' : '⬜ 报名未齐'}</span>`;
+        const paidFlag     = `<span class="dgn-flag ${dgn.allPaid     ? 'done' : 'pend'}">${dgn.allPaid     ? '✅ 全员付款' : '⬜ 付款未齐'}</span>`;
+        const approvedFlag = `<span class="dgn-flag ${dgn.allApproved ? 'done' : 'pend'}">${dgn.allApproved ? '✅ 全员通过' : '⬜ 审核未齐'}</span>`;
+
+        // 成员区：使用独立 renderMemberCard 避免与 delegate-list 的 ID 冲突
+        const memberCards = (dgn.members || []).map((m, mi) => {
+            const d = allDelegates.find(x => x.id === m.id);
+            if (!d) return `<div style="color:var(--muted);font-size:0.75rem;padding:8px 0;">代表 ID #${m.id} 数据未加载</div>`;
+            return renderMemberCard(d, mi + 1);
+        }).join('');
+
+        return `<div class="dgn-card" id="dgn-${dgn.id}">
+  <div class="dgn-card-main" onclick="toggleDgnDetail(${dgn.id})">
+    <div class="dgn-seq">#${String(idx).padStart(2,'0')}</div>
+    <div class="dgn-info">
+      <div class="dgn-name">${esc(dgn.name || '—')}</div>
+      <div class="dgn-school">${esc(dgn.schoolName || '—')}</div>
+      <div class="dgn-completion" style="margin-top:5px;">${appliedFlag}${paidFlag}${approvedFlag}</div>
+    </div>
+    <div class="dgn-badges">
+      <span class="dgn-invite">${esc(dgn.inviteCode || '—')}</span>
+      <span class="dgn-member-count">👥 ${dgn.memberCount || 0} 名成员</span>
+    </div>
+  </div>
+  <div class="dgn-detail" id="dgnd-${dgn.id}">
+    <!-- 领队信息 -->
+    <div class="dgn-leader-block" style="background:rgba(255,209,102,0.05);border:1px solid rgba(255,209,102,0.15);border-radius:8px;padding:12px 16px;margin-bottom:14px;">
+      <div class="dgn-lf"><div class="dk">领队账号</div><div class="dv">${esc(dgn.leaderUsername || '—')}</div></div>
+      <div class="dgn-lf"><div class="dk">领队姓名</div><div class="dv">${esc(dgn.leaderName || '—')}</div></div>
+      <div class="dgn-lf"><div class="dk">领队电话</div><div class="dv">${esc(dgn.leaderPhone || '—')}</div></div>
+      <div class="dgn-lf"><div class="dk">邀请码</div><div class="dv" style="font-family:var(--mono);color:var(--gold);letter-spacing:.1em;">${esc(dgn.inviteCode || '—')}</div></div>
+    </div>
+    <!-- 成员完整卡片列表 -->
+    <div class="dgn-members-title">成员列表（${dgn.memberCount || 0}）</div>
+    <div style="margin-top:8px;">
+      ${memberCards || '<div style="color:var(--muted);font-size:0.78rem;padding:8px 0;">暂无成员报名</div>'}
+    </div>
+  </div>
+</div>`;
+    }
+
+    /** 展开/收起代表团详情 */
+    function toggleDgnDetail(id) {
+        const el = document.getElementById('dgnd-' + id);
+        if (!el) return;
+        const isOpen = el.style.display === 'block';
+        el.style.display = isOpen ? 'none' : 'block';
+    }
+
+    initCommitteeList();
+    loadData(); // 拉取真实数据
+</script>
+<script src="aimunc-session.js"></script>
+<script>document.addEventListener('DOMContentLoaded', function(){ initIdleTimeout(60, 'admin-login.html'); });</script>
+</body>
+</html>

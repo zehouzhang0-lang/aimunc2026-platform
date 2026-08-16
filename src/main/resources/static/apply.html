@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>代表报名中心 - AIMUNC 2026</title>
+    <!-- ▼▼▼ 主题初始化：必须在所有 CSS 之前同步执行，消除主题闪烁 ▼▼▼ -->
+    <script>
+        (function(){try{
+            var t=localStorage.getItem('aimunc_theme');
+            if(t!=='light'&&t!=='dark'){t=localStorage.getItem('mun_theme');}
+            if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}
+        }catch(e){}}());
+    </script>
+    <!-- ▲▲▲ 主题初始化结束 ▲▲▲ -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="aimunc-theme.css">
+    <!-- 【#040 Task 5a · Step A】Three.js CDN — Chen-Lee 背景板依赖 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        /* ── 主题变量桥接（接入 aimunc-theme.css）──────────────────── */
+        * { box-sizing: border-box; }
+        body {
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0; padding: 0;
+            min-height: 100vh;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        /* ── 顶部 Header ──────────────────────────────────────────── */
+        .apply-header {
+            background: linear-gradient(135deg,
+            rgba(0,180,255,0.18) 0%,
+            rgba(0,60,180,0.22) 100%);
+            border-bottom: 1px solid var(--border);
+            color: var(--text-heading);
+            padding: 2rem 0;
+            border-radius: 0 0 40px 40px;
+            position: relative;
+        }
+        [data-theme="light"] .apply-header {
+            background: linear-gradient(135deg,
+            rgba(0,102,255,0.1) 0%,
+            rgba(0,40,160,0.07) 100%);
+        }
+
+        .nav-btns { position: absolute; top: 20px; left: 30px; }
+        .btn-glass {
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            background: var(--bg-card);
+            border-radius: 20px; padding: 7px 18px;
+            text-decoration: none; font-size: 0.88rem;
+            backdrop-filter: blur(8px);
+            transition: border-color 0.2s, color 0.2s;
+        }
+        .btn-glass:hover { border-color: var(--accent); color: var(--accent); }
+
+        .ddl-timer {
+            display: inline-block; margin-top: 10px;
+            background: rgba(0,0,0,0.2);
+            border: 1px solid var(--border);
+            border-radius: 12px; padding: 10px 20px;
+        }
+        [data-theme="light"] .ddl-timer { background: rgba(255,255,255,0.5); }
+        .timer-num {
+            color: var(--warning); font-weight: bold;
+            font-family: monospace; font-size: 1.1rem;
+        }
+
+        /* ── 【#040 Task 5b/5c】早鸟倒计时（与报名截止同框样式，数字用 accent 色区分）── */
+        .earlybird-timer {
+            margin-top: 8px;
+            /* 不覆盖 .ddl-timer 的 background/border，继承即可 */
+        }
+        .earlybird-num {
+            color: var(--accent) !important;
+        }
+        /* 早鸟已结束：变灰+删除线 */
+        .earlybird-expired {
+            opacity: 0.5;
+        }
+        .earlybird-expired .earlybird-num {
+            color: var(--text-secondary) !important;
+            text-decoration: line-through;
+        }
+
+        /* ── 表单卡片 ─────────────────────────────────────────────── */
+        .form-section {
+            background: var(--bg-card);
+            backdrop-filter: blur(var(--card-blur));
+            -webkit-backdrop-filter: blur(var(--card-blur));
+            border: 1px solid var(--border);
+            border-radius: 20px; padding: 2.5rem;
+            box-shadow: var(--card-shadow);
+        }
+        @supports not (backdrop-filter: blur(1px)) {
+            .form-section { background: var(--bg-card-solid); }
+        }
+
+        .section-title {
+            border-left: 4px solid var(--accent);
+            padding-left: 10px; margin: 1.8rem 0 1.2rem;
+            color: var(--accent); font-weight: bold;
+        }
+
+        /* ── Bootstrap form 控件深/浅色适配 ─────────────────────── */
+        .form-control, .form-select {
+            background: var(--bg-input) !important;
+            border: 1px solid var(--border) !important;
+            color: var(--text-primary) !important;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: var(--border-focus) !important;
+            box-shadow: 0 0 0 3px var(--accent-glow) !important;
+        }
+        .form-control::placeholder { color: var(--text-secondary) !important; }
+        .form-label { color: var(--text-primary); }
+        .text-muted, .form-text { color: var(--text-secondary) !important; }
+
+        /* ── 【#040 Task 5c】深色模式下 select option 文字可读性 ──── */
+        .form-select option {
+            background: var(--bg-card-solid);
+            color: var(--text-primary);
+        }
+
+        /* ── 状态横幅 ─────────────────────────────────────────────── */
+        .status-banner { border-radius: 12px; padding: 14px 20px; margin-bottom: 1.5rem; }
+        .banner-pending  { background: rgba(255,209,102,0.1); border: 1px solid var(--warning);  color: var(--warning); }
+        .banner-approved { background: rgba(0,180,255,0.08);  border: 1px solid var(--accent);   color: var(--accent); }
+        .banner-rejected { background: rgba(239,71,111,0.08); border: 1px solid var(--danger);   color: var(--danger); }
+        .banner-board    { background: rgba(6,214,160,0.08);  border: 1px solid var(--success);  color: var(--success); }
+
+        #verifyBadge { min-height: 20px; transition: all 0.2s ease; }
+
+        /* ── 付款凭证区域 ─────────────────────────────────────────── */
+        #paymentSection {
+            margin-top: 24px;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px 24px;
+            background: var(--bg-input);
+            display: none;
+        }
+        #paymentSection h6 { color: var(--text-heading); }
+        .pay-status-badge {
+            display: inline-block;
+            font-size: 0.82rem; font-weight: 600;
+            padding: 3px 10px; border-radius: 12px; margin-left: 8px;
+        }
+        .pay-badge-none    { background: rgba(107,114,128,0.2); color: var(--text-secondary); }
+        .pay-badge-pending { background: rgba(255,209,102,0.15); color: var(--warning); }
+        .pay-badge-ok      { background: rgba(6,214,160,0.12);  color: var(--success); }
+        #payProofPreview {
+            max-width: 100%; max-height: 320px;
+            border-radius: 6px; border: 1px solid var(--border);
+            margin-top: 12px; display: none;
+        }
+        #paymentSection .text-muted { color: var(--text-secondary) !important; }
+
+        /* ── 按钮 ─────────────────────────────────────────────────── */
+        .btn-outline-primary {
+            border-color: var(--accent) !important;
+            color: var(--accent) !important;
+            background: transparent !important;
+        }
+        .btn-outline-primary:hover {
+            background: var(--accent-glow) !important;
+        }
+        .btn-primary {
+            background: var(--accent) !important;
+            border-color: var(--accent) !important;
+            color: #fff !important;
+        }
+        .btn-primary:hover {
+            background: var(--accent-hover) !important;
+            box-shadow: 0 4px 16px var(--accent-glow);
+            transform: translateY(-1px);
+        }
+
+        /* ── 【#040 Task 5d】付款凭证引导高亮（提交后自动触发）───── */
+        @keyframes payment-highlight {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(0,180,255,0); }
+            20%, 80% { box-shadow: 0 0 0 4px var(--accent-glow), 0 0 20px var(--accent-glow); }
+        }
+        .payment-highlight {
+            animation: payment-highlight 2s ease-in-out 2;
+            border-color: var(--accent) !important;
+        }
+
+        /* ── 移动端响应式 ─────────────────────────────────────────── */
+        @media (max-width: 767px) {
+            .apply-header { border-radius: 0; padding: 2.5rem 0 1.4rem; }
+            .nav-btns { top: 12px; left: 12px; }
+            .form-section { padding: 1.4rem; border-radius: 12px; }
+            .row.g-3 > [class*="col-md-"] { flex: 0 0 100%; max-width: 100%; }
+        }
+
+        /* ── 主题切换按钮：固定左下角，与 dashboard/create_delegation 统一 ── */
+        #aimunc-theme-toggle {
+            position: fixed !important;
+            bottom: 24px !important;
+            left: 24px !important;
+            right: auto !important;
+            top: auto !important;
+            z-index: 9999 !important;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 【#040 Task 5a · Step B】背景层：CSS 网格兜底 + Chen-Lee canvas 容器 -->
+<div class="aimunc-bg"></div>
+<div class="aimunc-bg-chenlee" id="chenlee-bg" style="position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;pointer-events:none;"></div>
+
+<!-- 内容层（z-index:2 浮于背景之上） -->
+<div style="position:relative;z-index:2;">
+    <div class="apply-header text-center">
+        <div class="nav-btns"><a href="javascript:void(0)" onclick="goHome()" class="btn-glass">🏠 返回首页</a></div>
+        <h2 class="fw-bold">AIMUNC 2026 报名申请</h2>
+        <div class="ddl-timer">距报名截止还有：<span id="countdown" class="timer-num">正在同步时间...</span></div>
+        <!-- 【#040 Task 5b】早鸟优惠倒计时 -->
+        <div class="ddl-timer earlybird-timer" id="earlybirdTimerBox">
+            🐣 早鸟优惠截止：<span id="earlybirdCountdown" class="timer-num earlybird-num">正在同步时间...</span>
+        </div>
+    </div>
+
+    <div class="container py-5">
+        <form id="applyForm" class="form-section mx-auto" style="max-width: 850px;">
+            <input type="number" name="userId" id="autoUserId" style="display:none;" readonly>
+
+            <!-- 【指令 #013 Task3】状态横幅区（根据状态动态渲染） -->
+            <div id="statusBanner" style="display:none;"></div>
+
+            <!-- 【付款凭证 Step 3】付款凭证上传区（由 showPaymentSection() 控制显隐） -->
+            <div id="paymentSection">
+                <h6 class="fw-bold mb-3">💳 大会报名付款凭证上传
+                    <span id="payStatusBadge" class="pay-status-badge pay-badge-none">⚪ 尚未上传</span>
+                </h6>
+                <img id="payProofPreview" alt="付款凭证" />
+                <div class="mt-3">
+                    <input type="file" id="payFileInput" accept="image/jpeg,image/png"
+                           class="form-control form-control-sm" style="max-width:320px;" />
+                    <button type="button" class="btn btn-outline-primary btn-sm mt-2"
+                            onclick="uploadPaymentProof()">📤 上传凭证</button>
+                </div>
+                <div class="text-muted small mt-2" style="line-height:1.7;">
+                    请确保您已经在站外 / 线下（付款码）/ 通过组委完成了报名费用的缴交，本站不涉及任何运营性质功能，上传会费付款凭证仅供备份查阅您的付款记录，以便于更好地让组委确认报名进度。错误的凭证上传可能会影响您完成报名。<br>
+                    支持 JPG / PNG 格式，大小限制 2MB。重新上传将覆盖原有凭证并重置审核状态。
+                </div>
+            </div>
+
+            <div class="section-title">核心个人信息</div>
+            <div class="row g-3">
+                <div class="col-md-4"><label class="form-label fw-bold">真实姓名 <span class="text-danger">*</span></label><input type="text" name="realName" class="form-control" required></div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">性别 <span class="text-danger">*</span></label>
+                    <select name="gender" class="form-select"><option value="Male">男 (Male)</option><option value="Female">女 (Female)</option></select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">年级 <span class="text-danger">*</span></label>
+                    <select name="grade" class="form-select">
+                        <option value="初一">初一</option><option value="初二">初二</option><option value="初三">初三</option>
+                        <option value="高一">高一</option><option value="高二">高二</option><option value="高三">高三</option>
+                        <option value="大一">大一</option><option value="大二">大二</option><option value="大三">大三</option><option value="大四">大四</option>
+                        <option value="其他">其他</option>
+                    </select>
+                </div>
+                <!-- 【#035】学校字段补全：对齐 Delegate.java 的 school 列 -->
+                <div class="col-12">
+                    <label class="form-label fw-bold">所属学校 <span class="text-danger">*</span></label>
+                    <input type="text" name="school" class="form-control" placeholder="例如：厦门第一中学思明校区" required>
+                </div>
+                <div class="col-md-6"><label class="form-label fw-bold">联系电话 <span class="text-danger">*</span></label><input type="tel" name="phone" class="form-control" required></div>
+                <div class="col-md-6"><label class="form-label fw-bold">电子邮箱 <span class="text-danger">*</span></label><input type="email" name="email" class="form-control" required></div>
+                <!-- 【#035】微信号字段补全：对齐 Delegate.java 的 wechat 列 -->
+                <div class="col-md-6">
+                    <label class="form-label fw-bold">微信号 (WeChat ID) <span class="text-danger">*</span></label>
+                    <input type="text" name="wechat" class="form-control" placeholder="用于大会紧急联络，请确保准确" required>
+                </div>
+            </div>
+
+            <div class="section-title">紧急联系人</div>
+            <div class="row g-3">
+                <!-- 【#035】紧急联系人一：补充 emergencyContact1Relationship 字段 -->
+                <div class="col-md-5"><label class="form-label fw-bold">联系人一姓名 <span class="text-danger">*</span></label><input type="text" name="emergencyContact1Name" class="form-control" required></div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">与您的关系 <span class="text-danger">*</span></label>
+                    <select name="emergencyContact1Relationship" class="form-select">
+                        <option value="父亲">父亲</option>
+                        <option value="母亲">母亲</option>
+                        <option value="监护人">监护人</option>
+                        <option value="兄弟姐妹">兄弟姐妹</option>
+                        <option value="其他">其他</option>
+                    </select>
+                </div>
+                <div class="col-md-4"><label class="form-label fw-bold">联系人一电话 <span class="text-danger">*</span></label><input type="tel" name="emergencyContact1Phone" class="form-control" required></div>
+                <!-- 【#035】紧急联系人二：补充 emergencyContact2Relationship 字段 -->
+                <div class="col-md-5"><label class="form-label fw-bold">联系人二姓名</label><input type="text" name="emergencyContact2Name" class="form-control"></div>
+                <div class="col-md-3">
+                    <label class="form-label fw-bold">与您的关系</label>
+                    <select name="emergencyContact2Relationship" class="form-select">
+                        <option value="">（选填）</option>
+                        <option value="父亲">父亲</option>
+                        <option value="母亲">母亲</option>
+                        <option value="监护人">监护人</option>
+                        <option value="兄弟姐妹">兄弟姐妹</option>
+                        <option value="其他">其他</option>
+                    </select>
+                </div>
+                <div class="col-md-4"><label class="form-label fw-bold">联系人二电话</label><input type="tel" name="emergencyContact2Phone" class="form-control"></div>
+            </div>
+
+            <div class="section-title">团队归属 (选填)</div>
+            <div class="col-12">
+                <label class="form-label fw-bold">团队邀请码 (Invite Code)</label>
+                <input type="text" id="inviteCodeInput" name="inviteCode" class="form-control form-control-lg fw-bold text-uppercase" placeholder="个人代表请留空" maxlength="6">
+                <div id="verifyBadge" class="mt-2 small"></div>
+            </div>
+
+            <div class="section-title">学术志愿 (三志愿补完)</div>
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">第一志愿 <span class="text-danger">*</span></label>
+                    <select name="committeePref1" id="pref1" class="form-select" onchange="checkDuplicatePrefs()">
+                        <option value="">-- 请选择 --</option>
+                        <option value="linked-system">联动系统</option>
+                        <option value="linked-system-mpc">联动系统（MPC）</option>
+                        <option value="chinese-committee">联大三委</option>
+                        <option value="chinese-committee-mpc">联大三委（MPC）</option>
+                        <option value="icj">国际法庭</option>
+                        <option value="icj-mpc">国际法庭（MPC）</option>
+                        <option value="english-committee">英文常委</option>
+                        <option value="english-committee-mpc">英文常委（MPC）</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">第二志愿 <span class="text-danger">*</span></label>
+                    <select name="committeePref2" id="pref2" class="form-select" onchange="checkDuplicatePrefs()">
+                        <option value="">-- 请选择 --</option>
+                        <option value="linked-system">联动系统</option>
+                        <option value="linked-system-mpc">联动系统（MPC）</option>
+                        <option value="chinese-committee">联大三委</option>
+                        <option value="chinese-committee-mpc">联大三委（MPC）</option>
+                        <option value="icj">国际法庭</option>
+                        <option value="icj-mpc">国际法庭（MPC）</option>
+                        <option value="english-committee">英文常委</option>
+                        <option value="english-committee-mpc">英文常委（MPC）</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-bold">第三志愿 <span class="text-danger">*</span></label>
+                    <select name="committeePref3" id="pref3" class="form-select" onchange="checkDuplicatePrefs()">
+                        <option value="">-- 请选择 --</option>
+                        <option value="linked-system">联动系统</option>
+                        <option value="linked-system-mpc">联动系统（MPC）</option>
+                        <option value="chinese-committee">联大三委</option>
+                        <option value="chinese-committee-mpc">联大三委（MPC）</option>
+                        <option value="icj">国际法庭</option>
+                        <option value="icj-mpc">国际法庭（MPC）</option>
+                        <option value="english-committee">英文常委</option>
+                        <option value="english-committee-mpc">英文常委（MPC）</option>
+                    </select>
+                </div>
+                <div class="col-12">
+                    <div id="prefDuplicateAlert" style="display:none; color:#dc3545; font-size:0.85rem; margin-top:4px;"></div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-bold">接受调剂 <span class="text-danger">*</span></label>
+                    <select name="isAdjustmentAccepted" class="form-select"><option value="true">接受</option><option value="false">不接受</option></select>
+                </div>
+                <div class="col-12">
+                    <label class="form-label fw-bold">学术经历 <span class="text-danger">(正式提交必填)</span></label>
+                    <div class="text-muted small mb-1">如果没有参会经验，请直接填「无」</div>
+                    <textarea name="academicExperience" id="academicExp" class="form-control" rows="5"></textarea>
+                </div>
+            </div>
+
+            <div class="row mt-5 g-3" id="actionBtns">
+                <div class="col-md-6"><button type="button" id="draftBtn" onclick="saveData('DRAFT')" class="btn btn-outline-primary w-100 py-3 fw-bold">💾 暂存内容</button></div>
+                <div class="col-md-6"><button type="button" id="finalBtn" onclick="saveData('PENDING')" class="btn btn-primary w-100 py-3 fw-bold shadow">🚀 正式提交</button></div>
+            </div>
+            <div id="applyMsg" class="mt-4 text-center" style="display:none;"></div>
+        </form>
+    </div>
+
+    <script>
+        const deadline = new Date("2026-06-22T12:00:00").getTime();
+        const timer = setInterval(() => {
+            const distance = deadline - new Date().getTime();
+            if (distance < 0) {
+                clearInterval(timer);
+                document.getElementById("countdown").innerText = "报名已截止";
+                document.querySelectorAll('button').forEach(b => b.disabled = true);
+                return;
+            }
+            const d=Math.floor(distance/86400000), h=Math.floor((distance%86400000)/3600000),
+                m=Math.floor((distance%3600000)/60000), s=Math.floor((distance%60000)/1000);
+            document.getElementById("countdown").innerText = `${d}天 ${h}时 ${m}分 ${s}秒`;
+        }, 1000);
+
+        // ── 【#040 Task 5b】早鸟优惠倒计时（2026-04-22 12:00:00）──────────────────
+        const earlybirdDeadline = new Date("2026-04-22T12:00:00").getTime();
+        const earlybirdTimer = setInterval(() => {
+            const dist = earlybirdDeadline - new Date().getTime();
+            const box = document.getElementById("earlybirdTimerBox");
+            const el  = document.getElementById("earlybirdCountdown");
+            if (dist < 0) {
+                clearInterval(earlybirdTimer);
+                el.innerText = "早鸟优惠已结束";
+                if (box) box.classList.add("earlybird-expired");
+                return;
+            }
+            const d = Math.floor(dist / 86400000);
+            const h = Math.floor((dist % 86400000) / 3600000);
+            const m = Math.floor((dist % 3600000) / 60000);
+            const s = Math.floor((dist % 60000) / 1000);
+            el.innerText = `${d}天 ${h}时 ${m}分 ${s}秒`;
+        }, 1000);
+
+
+        // 【#027】三志愿校验：① 空值（必须全填）② 重复（不得相同）
+        function checkDuplicatePrefs() {
+            const v1       = document.getElementById('pref1').value;
+            const v2       = document.getElementById('pref2').value;
+            const v3       = document.getElementById('pref3').value;
+            const alertEl  = document.getElementById('prefDuplicateAlert');
+            const selects  = ['pref1', 'pref2', 'pref3'];
+            const vals     = [v1, v2, v3];
+
+            // 先清红框
+            selects.forEach(id => document.getElementById(id).classList.remove('is-invalid'));
+
+            // ── 检查①：空值 ──
+            const emptyIdx = vals.findIndex(v => v === '');
+            if (emptyIdx !== -1) {
+                document.getElementById(selects[emptyIdx]).classList.add('is-invalid');
+                alertEl.style.display  = 'block';
+                alertEl.textContent    = '⚠ 三个志愿必须全部填写，请补全第' + ['一','二','三'][emptyIdx] + '志愿';
+                return false;
+            }
+
+            // ── 检查②：重复 ──
+            if (vals.length !== new Set(vals).size) {
+                const seen = {};
+                vals.forEach((v, i) => {
+                    if (seen[v] !== undefined) {
+                        document.getElementById(selects[i]).classList.add('is-invalid');
+                        document.getElementById(selects[seen[v]]).classList.add('is-invalid');
+                    } else { seen[v] = i; }
+                });
+                alertEl.style.display = 'block';
+                alertEl.textContent   = '⚠ 三个志愿不能重复，请重新选择';
+                return false;
+            }
+
+            alertEl.style.display = 'none';
+            return true;
+        }
+
+        window.onload = async function () {
+            const userId = sessionStorage.getItem('mun_user_id');
+            if (!userId) { window.location.href = 'register.html'; return; }
+            document.getElementById('autoUserId').value = userId;
+
+            // 【#CRIT-02 联动修复】/api/delegate/user/{userId} 现已要求 JWT 鉴权，
+            // 必须在请求头中携带 token，否则后端返回 401，
+            // 表单回填和付款凭证区域将全部跳过，页面看起来像是空白新页面。
+            // getJwt() 定义在本文件下方（返回 sessionStorage 中的 mun_jwt）。
+            const jwt = getJwt();
+
+            try {
+                const res = await fetch(`/api/delegate/user/${userId}`, {
+                    headers: jwt ? { 'Authorization': 'Bearer ' + jwt } : {}
+                });
+                if (res.ok && res.status !== 204) {
+                    const data = await res.json();
+                    const form = document.getElementById('applyForm');
+                    for (let key in data) { if (form.elements[key]) form.elements[key].value = data[key]; }
+                    if (data.inviteCode) verifyCode(data.inviteCode);
+                    checkDuplicatePrefs(); // 回填后校验重复
+
+                    // 【指令 #013 Task3】根据状态决定表单的开放/锁定状态
+                    // 【#040】传入 delegationId 供个人/团体判断
+                    // 【付款凭证 Step 3】补传 data.id 和 data.paymentStatus
+                    applyStatusLogic(
+                        data.status,
+                        data.delegationId,
+                        data.id,
+                        data.paymentStatus
+                    );
+                }
+            } catch (e) { console.error("回填失败", e); }
+
+            // 【#040 Task 5d】正式提交后自动滚到付款凭证区 + 高亮动画
+            if (sessionStorage.getItem('mun_scroll_to_payment') === '1') {
+                sessionStorage.removeItem('mun_scroll_to_payment');
+                // 延迟 500ms 等页面和 showPaymentSection 渲染完成
+                setTimeout(function() {
+                    var paySection = document.getElementById('paymentSection');
+                    if (paySection && paySection.style.display !== 'none') {
+                        paySection.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        paySection.classList.add('payment-highlight');
+                        setTimeout(function() {
+                            paySection.classList.remove('payment-highlight');
+                        }, 4500);
+                    }
+                }, 500);
+            }
+        };
+
+        /**
+         * 【指令 #013 Task3 核心】根据状态控制表单行为
+         *
+         * 状态与表单锁定关系：
+         *
+         * DRAFT              → 表单开放（暂存草稿，可继续编辑）
+         * PENDING            → 表单锁定（已提交，等待领队审核）
+         * LEADER_APPROVED    → 表单锁定（领队已通过，等待学术委员会终审）
+         * REJECTED / REJECTED:理由 → 表单解锁！（被驳回，需修改后重新提交）
+         * ACADEMIC_BOARD_APPROVED → 表单锁定（终审已完成，不可更改）
+         */
+        // 【#040】签名新增 delegationId 参数，用于感知个人代表身份（isSolo）
+        // 【付款凭证 Step 3】签名新增 delegateId / paymentStatus，用于驱动付款区域
+        function applyStatusLogic(rawStatus, delegationId, delegateId, paymentStatus) {
+            if (!rawStatus) return;
+
+            // 【#040】无代表团 ID = 个人代表，审核链路直达学术委员会，跳过领队初审
+            const isSolo = !delegationId;
+
+            const banner   = document.getElementById('statusBanner');
+            const isRejected = rawStatus.startsWith('REJECTED');
+            const rawReason  = isRejected && rawStatus.includes(':')
+                ? rawStatus.substring(rawStatus.indexOf(':') + 1) : '';
+            // 【#033】[学委] 前缀 = 学委驳回；无前缀 = 领队驳回
+            const isAdminRej   = rawReason.startsWith('[学委]');
+            const rejectReason = isAdminRej ? rawReason.substring(4) : rawReason;
+            const rejectSrc    = isAdminRej ? '学术委员会' : '领队';
+            const baseStatus   = isRejected ? 'REJECTED' : rawStatus;
+
+            banner.style.display = 'block';
+
+            if (baseStatus === 'PENDING') {
+                // 【#040】已提交 → 锁定表单，按身份区分文案
+                const pendingTitle = isSolo
+                    ? '⏳ 您的申请已提交，正在等待学术委员会审核。'
+                    : '⏳ 您的申请已提交，正在等待领队审核。';
+                const pendingSub = isSolo
+                    ? '内容已锁定，学术委员会将直接审核您的申请。'
+                    : '内容已锁定，领队审核通过后将进入学术委员会终审流程。';
+                banner.innerHTML = `<div class="status-banner banner-pending">
+                <strong>${pendingTitle}</strong>
+                <div class="small mt-1">${pendingSub}</div>
+            </div>`;
+                lockForm();
+                // 【付款凭证 Step 3】报名表已提交，显示付款凭证区域
+                showPaymentSection(delegateId, paymentStatus);
+
+            } else if (baseStatus === 'LEADER_APPROVED') {
+                banner.innerHTML = `<div class="status-banner banner-approved">
+                <strong>✅ 您的申请已通过领队初审！</strong>
+                <div class="small mt-1">正在等待学术委员会终审，请耐心等候通知。</div>
+            </div>`;
+                lockForm();
+                showPaymentSection(delegateId, paymentStatus);
+
+            } else if (baseStatus === 'REJECTED') {
+                let reasonHtml = '';
+                if (rejectReason) {
+                    reasonHtml = `<div class="small mt-2 p-2" style="background:rgba(114,28,36,0.08);border-radius:6px;">
+                    <strong>💬 ${rejectSrc}驳回理由：</strong>${rejectReason}
+                </div>`;
+                }
+                banner.innerHTML = `<div class="status-banner banner-rejected">
+                <strong>⚠️ 您的报名申请已被${rejectSrc}驳回，请修改后重新提交。</strong>
+                ${reasonHtml}
+                <div class="small mt-2">表单已解锁，修改完成后点击「🚀 重新提交」即可。</div>
+            </div>`;
+
+            } else if (baseStatus === 'ACADEMIC_BOARD_APPROVED') {
+                banner.innerHTML = `<div class="status-banner banner-board">
+                <strong>🏆 恭喜！您的报名已通过学术委员会终审，报名成功！</strong>
+                <div class="small mt-1">请关注后续通知，了解大会行程和注意事项。</div>
+            </div>`;
+                lockForm();
+                showPaymentSection(delegateId, paymentStatus);
+
+            } else if (baseStatus === 'DRAFT') {
+                banner.innerHTML = `<div class="status-banner banner-pending">
+                <strong>📝 草稿已保存。</strong>
+                <div class="small mt-1">请完善信息后点击「正式提交」，提交后将进入审核流程。</div>
+            </div>`;
+            }
+        }
+
+        /* ════════════════════════════════════════════════════════
+           【付款凭证 Step 3】showPaymentSection
+        ════════════════════════════════════════════════════════ */
+        async function showPaymentSection(delegateId, paymentStatus) {
+            if (!delegateId) return;
+
+            const section = document.getElementById('paymentSection');
+            const badge   = document.getElementById('payStatusBadge');
+            section.style.display = 'block';
+            section.dataset.delegateId = delegateId;
+
+            // 【Bug Fix】lockForm() 会 disabled 掉 #applyForm 内所有 input，
+            // 包括付款区域的文件选择器和上传按钮，导致点击无响应。
+            const payFileInput = document.getElementById('payFileInput');
+            const payUploadBtn = payFileInput ? payFileInput.nextElementSibling : null;
+            if (payFileInput) payFileInput.disabled = false;
+            if (payUploadBtn && payUploadBtn.tagName === 'BUTTON') payUploadBtn.disabled = false;
+
+            const ps = paymentStatus || 'NOT_SUBMITTED';
+            const payStatusCfg = {
+                'NOT_SUBMITTED':  { cls: 'pay-badge-none',    text: '⚪ 尚未上传' },
+                'PENDING_REVIEW': { cls: 'pay-badge-pending', text: '⏳ 已提交，等待审核' },
+                'VERIFIED':       { cls: 'pay-badge-ok',      text: '✅ 已审核通过' },
+            };
+            const cfg = payStatusCfg[ps] || payStatusCfg['NOT_SUBMITTED'];
+            badge.className   = 'pay-status-badge ' + cfg.cls;
+            badge.textContent = cfg.text;
+
+            if (ps !== 'NOT_SUBMITTED') {
+                try {
+                    const res = await fetch(`/api/delegate/${delegateId}/payment-proof`, {
+                        // 【#050】替换旧 X-Operator-Id 裸ID头，改用 JWT 鉴权
+                        headers: { 'Authorization': 'Bearer ' + getJwt() }
+                    });
+                    if (res.ok) {
+                        const blob  = await res.blob();
+                        const imgEl = document.getElementById('payProofPreview');
+                        const oldUrl = imgEl.src;
+                        imgEl.src = URL.createObjectURL(blob);
+                        imgEl.style.display = 'block';
+                        imgEl.onload = () => { if (oldUrl && oldUrl.startsWith('blob:')) URL.revokeObjectURL(oldUrl); };
+                    }
+                } catch (e) { /* 预览加载失败静默 */ }
+            }
+        }
+
+        /* ════════════════════════════════════════════════════════
+           【付款凭证 Step 3】uploadPaymentProof
+        ════════════════════════════════════════════════════════ */
+        async function uploadPaymentProof() {
+            const fileInput = document.getElementById('payFileInput');
+            const file = fileInput.files[0];
+
+            if (!file) { alert('⚠️ 请先选择图片文件'); return; }
+
+            if (file.size > 2 * 1024 * 1024) {
+                alert('⚠️ 图片大小不能超过 2MB，请压缩后重新选择');
+                return;
+            }
+
+            const delegateId = document.getElementById('paymentSection').dataset.delegateId;
+
+            const formData = new FormData();
+            formData.append('file', file);
+            // 【#050】operatorId 字段已废弃（后端从 JWT 读取），此处移除
+
+            try {
+                const res = await fetch(`/api/delegate/${delegateId}/payment-proof`, {
+                    method: 'POST',
+                    // 【#050】加 JWT 鉴权头；不设 Content-Type，浏览器自动设 multipart/form-data
+                    headers: { 'Authorization': 'Bearer ' + getJwt() },
+                    body: formData
+                });
+                if (res.ok) {
+                    alert('✅ 付款凭证已上传，等待审核。');
+                    location.reload();
+                } else {
+                    const msg = await res.text();
+                    alert('⚠️ 上传失败：' + msg);
+                }
+            } catch (e) { alert('网络错误，请重试'); }
+        }
+
+        /** 锁定整个表单（已提交或终审通过时调用） */
+        function lockForm() {
+            document.querySelectorAll('#applyForm input, #applyForm select, #applyForm textarea')
+                .forEach(el => el.disabled = true);
+            document.getElementById('actionBtns').style.display = 'none';
+        }
+
+        // ── 邀请码校验逻辑（#037 增强：邀请码 → 学校单向联动）────────
+        async function verifyCode(code) {
+            const badge    = document.getElementById('verifyBadge');
+            const schoolEl = document.querySelector('[name="school"]');
+
+            if (!code || code.trim().length === 0) {
+                badge.className = "mt-2 small text-muted";
+                badge.innerText = "未填写邀请码，将默认为【个人报名】";
+                if (schoolEl) { schoolEl.readOnly = false; schoolEl.title = ""; }
+                return;
+            }
+            if (code.length === 6) {
+                badge.innerText = "🔍 正在检索代表团信息...";
+                try {
+                    const res = await fetch(`/api/delegation/verify/${code}`);
+                    if (res.ok && res.status !== 204) {
+                        const del = await res.json();
+                        badge.className = "alert alert-success py-2 small fw-bold mb-0 mt-2";
+                        badge.innerHTML = `✅ 确认加入：${del.name}<br>🏫 学校：${del.schoolName}`;
+
+                        // 【#037】单向联动：将代表团学校自动填入 school 字段并设为只读
+                        if (schoolEl && del.schoolName) {
+                            schoolEl.value    = del.schoolName;
+                            schoolEl.readOnly = true;
+                            schoolEl.title    = "学校已由邀请码自动填入，如需修改请清空邀请码";
+                        }
+                    } else {
+                        badge.className = "text-danger small mt-2 fw-bold";
+                        badge.innerText = "❌ 未找到对应代表团，请检查邀请码是否输入正确";
+                        if (schoolEl) { schoolEl.readOnly = false; schoolEl.title = ""; }
+                    }
+                } catch (e) {
+                    badge.innerText = "⚠️ 核验系统繁忙";
+                    if (schoolEl) { schoolEl.readOnly = false; schoolEl.title = ""; }
+                }
+            } else {
+                badge.className = "text-muted small mt-2";
+                badge.innerText = "邀请码需为 6 位，当前不足，将视为个人代表。";
+                if (schoolEl) { schoolEl.readOnly = false; schoolEl.title = ""; }
+            }
+        }
+
+        document.getElementById('inviteCodeInput').addEventListener('input', e => {
+            verifyCode(e.target.value.toUpperCase().trim());
+        });
+
+        // 【#027】辅助：手机号格式校验（11位，1[3-9]开头）
+        function isValidPhone(phone) {
+            return /^1[3-9]\d{9}$/.test(phone);
+        }
+
+        // 【#027】辅助：平滑滚动到元素并 focus
+        function scrollFocus(el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => el.focus(), 400);
+        }
+
+        // 【#050】辅助：读取登录时存入的 JWT token（register.html 登录成功后存入 mun_jwt）
+        function getJwt() {
+            return sessionStorage.getItem('mun_jwt') || '';
+        }
+
+        async function saveData(status) {
+            const data = Object.fromEntries(new FormData(document.getElementById('applyForm')).entries());
+            data.userId = parseInt(data.userId);
+            data.status = status;
+            data.isAdjustmentAccepted = data.isAdjustmentAccepted === "true";
+
+            // ══════════════════════════════════════════════════════════════
+            // 【#027】正式提交全量校验门禁（PENDING 专属）
+            // ══════════════════════════════════════════════════════════════
+            if (status === 'PENDING') {
+
+                // ── 1. 真实姓名 ──
+                if (!data.realName || !data.realName.trim()) {
+                    alert('⚠️ 请填写真实姓名');
+                    scrollFocus(document.querySelector('[name="realName"]'));
+                    return;
+                }
+
+                // ── 2. 所属学校（#035 新增）──
+                if (!data.school || !data.school.trim()) {
+                    alert('⚠️ 请填写所属学校');
+                    scrollFocus(document.querySelector('[name="school"]'));
+                    return;
+                }
+
+                // ── 3. 联系电话（11位手机号）──
+                if (!data.phone || !isValidPhone(data.phone)) {
+                    alert('⚠️ 联系电话必须为11位手机号（格式：1[3-9]XXXXXXXXX）');
+                    scrollFocus(document.querySelector('[name="phone"]'));
+                    return;
+                }
+
+                // ── 4. 电子邮箱 ──
+                if (!data.email || !data.email.trim()) {
+                    alert('⚠️ 请填写电子邮箱');
+                    scrollFocus(document.querySelector('[name="email"]'));
+                    return;
+                }
+
+                // ── 5. 微信号（#035 新增）──
+                if (!data.wechat || !data.wechat.trim()) {
+                    alert('⚠️ 请填写微信号（用于大会紧急联络）');
+                    scrollFocus(document.querySelector('[name="wechat"]'));
+                    return;
+                }
+
+                // ── 6. 紧急联系人一姓名 ──
+                if (!data.emergencyContact1Name || !data.emergencyContact1Name.trim()) {
+                    alert('⚠️ 请填写紧急联系人一姓名');
+                    scrollFocus(document.querySelector('[name="emergencyContact1Name"]'));
+                    return;
+                }
+
+                // ── 7. 紧急联系人一电话（11位手机号）──
+                if (!data.emergencyContact1Phone || !isValidPhone(data.emergencyContact1Phone)) {
+                    alert('⚠️ 紧急联系人一电话必须为11位手机号（格式：1[3-9]XXXXXXXXX）');
+                    scrollFocus(document.querySelector('[name="emergencyContact1Phone"]'));
+                    return;
+                }
+
+                // ── 8. 三志愿校验 ──
+                if (!checkDuplicatePrefs()) {
+                    document.getElementById('pref1').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    alert('⚠️ 志愿填写不完整或有重复，请检查后再提交。');
+                    return;
+                }
+
+                // ── 9. 学术经历 ──
+                if (!data.academicExperience || !data.academicExperience.trim()) {
+                    alert('⚠️ 正式提交必须填写学术经历（若无参会经验请填「无」）');
+                    scrollFocus(document.getElementById('academicExp'));
+                    return;
+                }
+            }
+            // ══════════════════════════════════════════════════════════════
+
+            try {
+                const res = await fetch('/api/delegate/apply', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // 【#050】携带 JWT，后端用于覆盖 userId、防止 IDOR
+                        'Authorization': 'Bearer ' + getJwt()
+                    },
+                    body: JSON.stringify(data)
+                });
+                if (res.ok) {
+                    if (status === 'DRAFT') {
+                        alert('💾 已暂存');
+                        location.reload();
+                    } else {
+                        // 【#040 Task 5d】正式提交成功 → 设置标记 → reload 后自动滚到付款区
+                        sessionStorage.setItem('mun_scroll_to_payment', '1');
+                        const submitMsg = data.inviteCode
+                            ? '🚀 已正式提交！等待领队审核。\n\n接下来请上传付款凭证，完成全部报名流程。'
+                            : '🚀 已正式提交！等待学术委员会审核。\n\n接下来请上传付款凭证，完成全部报名流程。';
+                        alert(submitMsg);
+                        location.reload();
+                    }
+                } else {
+                    // 【#050 Bug Fix】原版无 else 分支，401/403 时完全静默——用户点击后毫无反应。
+                    // 后端现在要求 JWT，无 token 或 token 过期均返回 401，必须明确提示用户。
+                    const errText = await res.text().catch(() => '');
+                    if (res.status === 401) {
+                        alert('⚠️ 登录状态已失效，请重新登录后再试。');
+                        location.href = 'register.html';
+                    } else {
+                        alert('⚠️ 操作失败（' + res.status + '）：' + (errText || '请稍后重试'));
+                    }
+                }
+            } catch (e) { alert("网络错误"); }
+        }
+
+        function goHome() { if (confirm("确定回首页吗？")) location.href = 'index.html'; }
+    </script>
+</div><!-- /内容层 -->
+
+<script src="aimunc-theme.js"></script>
+<script>
+    /* 主题按钮图标补写：MutationObserver 三层保障（与 dashboard/create_delegation 一致）
+       根因：aimunc-theme.js 用 DOMContentLoaded 注入按钮，
+       同步执行时按钮还不在 DOM 里，需监听插入事件后立即写图标。 */
+    (function() {
+        function applyIcon() {
+            var btn = document.getElementById('aimunc-theme-toggle');
+            if (!btn) return false;
+            if (!btn.textContent.trim()) {
+                var theme = document.documentElement.getAttribute('data-theme') || 'dark';
+                btn.textContent = theme === 'dark' ? '🌙' : '☀️';
+            }
+            return true;
+        }
+        if (applyIcon()) return;
+        var obs = new MutationObserver(function() {
+            if (applyIcon()) obs.disconnect();
+        });
+        obs.observe(document.documentElement, { childList: true, subtree: true });
+        setTimeout(function() { applyIcon(); obs.disconnect(); }, 300);
+    })();
+</script>
+
+<!-- 【#040 Task 5a · Step C】Chen-Lee 背景板初始化 -->
+<script src="chen-lee-bg.js"></script>
+<script>
+    (function() {
+        var bg = window.aimuncBgInit('chenlee-bg');
+        if (bg) window._aimuncBg = bg;
+    })();
+</script>
+<script src="aimunc-session.js"></script>
+<script>document.addEventListener('DOMContentLoaded', function(){ initIdleTimeout(60, 'register.html'); });</script>
+</body>
+</html>

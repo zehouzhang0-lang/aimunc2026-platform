@@ -1,0 +1,226 @@
+/* ================================================================
+   AIMUNC 2026 — 全局视觉基建
+   aimunc-theme.css  v1.0
+   ================================================================ */
+
+/* ── 深色模式变量 ─────────────────────────────────────────────── */
+[data-theme="dark"] {
+    --bg-primary:        #08091a;
+    --bg-card:           rgba(20,26,60,0.45);
+    --bg-card-solid:     #111638;
+    --bg-input:          rgba(255,255,255,0.05);
+    --border:            rgba(255,255,255,0.08);
+    --border-focus:      rgba(0,180,255,0.5);
+
+    --text-primary:      #dde1f0;
+    --text-secondary:    rgba(255,255,255,0.4);
+    --text-heading:      #ffffff;
+
+    --accent:            #00b4ff;
+    --accent-hover:      #33c4ff;
+    --accent-glow:       rgba(0,180,255,0.25);
+    --success:           #06d6a0;
+    --warning:           #ffd166;
+    --danger:            #ef476f;
+
+    --grid-color:        rgba(0,180,255,0.04);
+    --glow-color:        rgba(0,180,255,0.08);
+
+    --card-blur:         12px;
+    --card-shadow:       0 8px 32px rgba(0,0,0,0.4);
+    --card-radius:       12px;
+
+    --toggle-bg:         rgba(255,255,255,0.08);
+    --toggle-border:     rgba(255,255,255,0.15);
+    --toggle-color:      #dde1f0;
+    --toggle-hover-bg:   rgba(0,180,255,0.15);
+}
+
+/* ── 浅色模式变量 ─────────────────────────────────────────────── */
+[data-theme="light"] {
+    --bg-primary:        #ddeeff;
+    --bg-card:           rgba(255,255,255,0.28);
+    --bg-card-solid:     #eaf3ff;
+    --bg-input:          rgba(255,255,255,0.45);
+    --border:            rgba(100,160,240,0.22);
+    --border-focus:      rgba(60,130,255,0.5);
+
+    --text-primary:      #0d1f4a;
+    --text-secondary:    rgba(20,50,110,0.55);
+    --text-heading:      #0a1a3a;
+
+    --accent:            #0066ff;
+    --accent-hover:      #1a75ff;
+    --accent-glow:       rgba(0,102,255,0.15);
+    --success:           #059669;
+    --warning:           #d97706;
+    --danger:            #dc2626;
+
+    --grid-color:        rgba(0,80,200,0.05);
+    --glow-color:        rgba(0,80,200,0.06);
+
+    --card-blur:         12px;
+    --card-shadow:       0 24px 64px rgba(30,80,160,0.10), 0 0 0 1px rgba(100,160,255,0.10) inset, 0 1px 0 rgba(255,255,255,0.80) inset;
+    --card-radius:       12px;
+
+    --toggle-bg:         rgba(30,80,160,0.10);
+    --toggle-border:     rgba(100,160,240,0.30);
+    --toggle-color:      #0d1f4a;
+    --toggle-hover-bg:   rgba(0,102,255,0.1);
+}
+
+/* ── 背景第一层：CSS 静态网格 ──────────────────────────────────── */
+.aimunc-bg {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    background-color: var(--bg-primary);
+    background-image:
+            linear-gradient(var(--grid-color) 1px, transparent 1px),
+            linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+    background-size: 48px 48px;
+    transition: background-color 0.3s ease;
+}
+
+/* 第二层：径向渐变光晕（伪元素） */
+.aimunc-bg::before {
+    content: '';
+    position: absolute;
+    top: -20%; left: -10%;
+    width: 60%; height: 60%;
+    background: radial-gradient(circle, var(--glow-color) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+.aimunc-bg::after {
+    content: '';
+    position: absolute;
+    bottom: -15%; right: -10%;
+    width: 50%; height: 50%;
+    background: radial-gradient(circle, var(--glow-color) 0%, transparent 70%);
+    pointer-events: none;
+}
+
+/* ── 页面内容层 ────────────────────────────────────────────────── */
+.aimunc-content {
+    position: relative;
+    z-index: 2;
+    min-height: 100vh;
+}
+
+/* ── 公共卡片 ──────────────────────────────────────────────────── */
+.aimunc-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(var(--card-blur));
+    -webkit-backdrop-filter: blur(var(--card-blur));
+    border: 1px solid var(--border);
+    border-radius: var(--card-radius);
+    box-shadow: var(--card-shadow);
+    color: var(--text-primary);
+    transition: background 0.3s ease, box-shadow 0.3s ease;
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+    .aimunc-card { background: var(--bg-card-solid); }
+}
+
+/* ── 表单元素覆写 ──────────────────────────────────────────────── */
+.aimunc-form .form-control,
+.aimunc-form .form-select {
+    background: var(--bg-input) !important;
+    border: 1px solid var(--border) !important;
+    color: var(--text-primary) !important;
+    border-radius: 8px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.aimunc-form .form-control:focus,
+.aimunc-form .form-select:focus {
+    border-color: var(--border-focus) !important;
+    box-shadow: 0 0 0 3px var(--accent-glow) !important;
+    background: var(--bg-input) !important;
+}
+
+.aimunc-form .form-control::placeholder {
+    color: var(--text-secondary);
+}
+
+.aimunc-form label,
+.aimunc-form .form-label {
+    color: var(--text-primary) !important;
+}
+
+/* select 选项（部分浏览器支持） */
+.aimunc-form .form-select option {
+    background: var(--bg-card-solid);
+    color: var(--text-primary);
+}
+
+/* ── 主题切换按钮 ───────────────────────────────────────────────── */
+#aimunc-theme-toggle {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 9999;
+    background: var(--toggle-bg);
+    border: 1px solid var(--toggle-border);
+    color: var(--toggle-color);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, border-color 0.2s, transform 0.15s;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+    line-height: 1;
+    padding: 0;
+}
+
+#aimunc-theme-toggle:hover {
+    background: var(--toggle-hover-bg);
+    transform: scale(1.08);
+}
+
+/* ── Chen-Lee 背景板容器 ────────────────────────────────── */
+.aimunc-bg-chenlee {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+    pointer-events: none;
+    /* canvas 和 overlay 由 chen-lee-bg.js 动态创建 */
+}
+
+/* ── 响应式断点 ────────────────────────────────────────────────── */
+@media (max-width: 767px) {
+    .aimunc-card {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        border-radius: 0 !important;
+        padding: 20px 16px !important;
+    }
+
+    .form-row,
+    .form-group-row {
+        flex-direction: column !important;
+    }
+
+    .form-row > *,
+    .form-group-row > * {
+        width: 100% !important;
+        margin-right: 0 !important;
+    }
+
+    body { font-size: 15px; }
+
+    .navbar { padding: 8px 12px; }
+}

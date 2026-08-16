@@ -1,0 +1,1075 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>账号登录 - AIMUNC 2026</title>
+    <!-- 主题初始化：必须在所有 CSS 之前同步执行，消除主题闪烁 -->
+    <script>
+        (function(){try{
+            var t=localStorage.getItem('aimunc_theme');
+            if(t!=='light'&&t!=='dark'){t=localStorage.getItem('mun_theme');}
+            if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}
+        }catch(e){}}());
+    </script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="aimunc-theme.css">
+    <!-- 【#040 Task 4a · Step A】Three.js CDN — Chen-Lee 背景板依赖 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        /* ── 页面基础 ─────────────────────────────────────────── */
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; padding: 0;
+            min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        /* ── 登录卡片 ─────────────────────────────────────────── */
+        .login-card {
+            max-width: 460px;
+            width: 100%;
+            margin: auto;
+            padding: 36px 32px;
+        }
+
+        .login-card h3 {
+            color: var(--text-heading);
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .login-card .page-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.88rem;
+        }
+
+        /* ── 意图横幅 ─────────────────────────────────────────── */
+        .intent-banner {
+            background: linear-gradient(135deg,
+            rgba(0,180,255,0.15) 0%,
+            rgba(0,100,255,0.1) 100%);
+            border: 1px solid rgba(0,180,255,0.25);
+            color: var(--text-primary);
+            border-radius: 10px;
+            padding: 12px 16px;
+            margin-bottom: 1.2rem;
+            font-size: 0.85rem;
+        }
+
+        [data-theme="light"] .intent-banner {
+            background: linear-gradient(135deg,
+            rgba(0,102,255,0.08) 0%,
+            rgba(0,60,200,0.05) 100%);
+            border-color: rgba(0,102,255,0.2);
+        }
+
+        .intent-icon { font-size: 1.2rem; margin-right: 8px; }
+        .intent-banner strong { display: block; font-size: 0.9rem; margin-bottom: 2px; color: var(--accent); }
+        .intent-banner span { opacity: 0.85; }
+
+        /* ── 角色锁定 ─────────────────────────────────────────── */
+        .role-wrapper { position: relative; }
+        .role-lock-overlay {
+            display: none; position: absolute; inset: 0;
+            border-radius: 8px; cursor: not-allowed; z-index: 10; background: transparent;
+        }
+        .role-lock-hint {
+            display: none;
+            font-size: 0.74rem;
+            color: var(--text-secondary);
+            margin-top: 5px;
+        }
+        .role-lock-hint a { color: var(--accent) !important; }
+
+        /* ── Toast ────────────────────────────────────────────── */
+        #lockToast {
+            position: fixed; bottom: 36px; left: 50%;
+            transform: translateX(-50%) translateY(16px);
+            background: var(--accent); color: #fff;
+            padding: 11px 26px; border-radius: 50px;
+            font-size: 0.84rem; font-weight: 500;
+            box-shadow: 0 8px 28px var(--accent-glow);
+            opacity: 0; transition: opacity 0.22s ease, transform 0.22s ease;
+            pointer-events: none; white-space: nowrap; z-index: 9999;
+        }
+        #lockToast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        /* ── 错误卡片 ─────────────────────────────────────────── */
+        .error-box {
+            background: rgba(255,209,102,0.08);
+            border: 1.5px solid var(--warning);
+            border-radius: 12px;
+            padding: 16px 18px;
+            margin-top: 8px;
+        }
+        .error-box .eb-title {
+            font-weight: 700;
+            color: var(--warning);
+            margin-bottom: 6px;
+            font-size: 0.95rem;
+        }
+        .error-box .eb-desc {
+            font-size: 0.83rem;
+            color: var(--text-primary);
+            line-height: 1.6;
+            opacity: 0.85;
+        }
+        .error-box .eb-actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+        .eb-btn-primary {
+            background: var(--accent); color: white; border: none;
+            border-radius: 8px; padding: 8px 18px;
+            font-size: 0.83rem; font-weight: 600; cursor: pointer;
+            transition: background 0.2s;
+        }
+        .eb-btn-primary:hover { background: var(--accent-hover); }
+        .eb-btn-ghost {
+            background: transparent; color: var(--accent);
+            border: 1.5px solid var(--accent);
+            border-radius: 8px; padding: 8px 18px;
+            font-size: 0.83rem; font-weight: 600; cursor: pointer;
+            text-decoration: none; display: inline-block;
+            transition: background 0.2s;
+        }
+        .eb-btn-ghost:hover { background: var(--accent-glow); }
+
+        /* ── 字段提示 ─────────────────────────────────────────── */
+        .field-hint    { font-size: 0.75rem; margin-top: 4px; min-height: 18px; color: var(--text-secondary); }
+        .field-hint.ok  { color: var(--success) !important; }
+        .field-hint.err { color: var(--danger)  !important; }
+        input.is-invalid-custom { border-color: var(--danger)   !important; box-shadow: 0 0 0 3px rgba(239,71,111,0.15) !important; }
+        input.is-valid-custom   { border-color: var(--success)  !important; }
+
+        /* 探测状态徽章 */
+        .probe-badge { font-size:0.72rem; padding:2px 8px; border-radius:10px; margin-left:6px; vertical-align:middle; }
+        .probe-new   { background: rgba(6,214,160,0.12);  color: var(--success); }
+        .probe-exist { background: rgba(0,180,255,0.12);  color: var(--accent);  }
+        .probe-ing   { background: rgba(255,255,255,0.06); color: var(--text-secondary); }
+
+        /* ── 主提交按钮 ───────────────────────────────────────── */
+        .btn-login {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            padding: 12px;
+            font-weight: 700;
+            border-radius: 8px;
+            width: 100%;
+            font-size: 1rem;
+            letter-spacing: 0.02em;
+            transition: background 0.2s, box-shadow 0.2s, transform 0.15s;
+            cursor: pointer;
+        }
+        .btn-login:hover {
+            background: var(--accent-hover);
+            box-shadow: 0 4px 20px var(--accent-glow);
+            transform: translateY(-1px);
+            color: #fff;
+        }
+        .btn-login:active { transform: translateY(0); }
+
+        /* ── 返回链接 ─────────────────────────────────────────── */
+        .back-link {
+            color: var(--text-secondary) !important;
+            font-size: 0.85rem;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+        .back-link:hover { color: var(--accent) !important; }
+
+        /* ── 分隔线 ───────────────────────────────────────────── */
+        .aimunc-divider {
+            border: none;
+            border-top: 1px solid var(--border);
+            margin: 20px 0;
+        }
+
+        /* ── C1：register.html 专属毛玻璃增强 ──────────────────── */
+        /* C1 v2：透明度进一步降低，加亮边框增强对比 */
+        [data-theme="dark"]  .login-card,
+        :root:not([data-theme="light"]) .login-card {
+            background: rgba(20, 26, 60, 0.18) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            border: 1px solid rgba(100, 180, 255, 0.22) !important;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(100,180,255,0.10) inset !important;
+        }
+        [data-theme="light"] .login-card {
+            background: rgba(255, 255, 255, 0.14) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            border: 1px solid rgba(80, 140, 255, 0.25) !important;
+            box-shadow: 0 8px 40px rgba(30,80,160,0.12), 0 0 0 1px rgba(255,255,255,0.60) inset !important;
+        }
+
+        /* ── C2：身份 Toggle ──────────────────────────────────── */
+        .role-toggle-wrap {
+            position: relative;
+            display: flex;
+            border-radius: 10px;
+            overflow: hidden;
+            background: var(--bg-input);
+            border: 1px solid var(--border);
+            padding: 4px;
+            gap: 0;
+            height: 52px;
+        }
+
+        /* 滑动背景块 */
+        .role-toggle-slider {
+            position: absolute;
+            top: 4px; bottom: 4px;
+            width: calc(50% - 4px);
+            border-radius: 7px;
+            background: var(--accent);
+            transition: transform 0.28s cubic-bezier(0.34, 1.2, 0.64, 1);
+            z-index: 0;
+            left: 4px;   /* 默认 DELEGATE 在左 */
+        }
+
+        /* LEADER 选中时滑块右移 */
+        .role-toggle-wrap.leader .role-toggle-slider {
+            transform: translateX(calc(100% + 4px));
+        }
+
+        /* 按钮本体 */
+        .role-tab {
+            flex: 1;
+            position: relative;
+            z-index: 1;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 0.92rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            transition: color 0.22s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2px;
+            border-radius: 7px;
+            padding: 0;
+            line-height: 1.2;
+        }
+
+        .role-tab-sub {
+            font-size: 0.72rem;
+            font-weight: 400;
+            opacity: 0.75;
+        }
+
+        /* 激活态：文字变白 */
+        .role-toggle-wrap.delegate #roleTabDelegate,
+        .role-toggle-wrap.leader   #roleTabLeader {
+            color: #fff;
+        }
+
+        [data-theme="light"] .role-toggle-wrap.delegate #roleTabDelegate,
+        [data-theme="light"] .role-toggle-wrap.leader   #roleTabLeader {
+            color: #fff;
+        }
+
+        /* 锁定遮罩 */
+        .role-toggle-wrap .role-lock-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 20;
+            cursor: not-allowed;
+            background: transparent;
+            border-radius: 10px;
+        }
+
+        /* 锁定态 */
+        .role-toggle-wrap.locked {
+            opacity: 0.60;
+            pointer-events: none;
+        }
+        .role-toggle-wrap.locked .role-lock-overlay {
+            pointer-events: all; /* 锁定时遮罩可响应点击弹 Toast */
+        }
+
+        /* ── 移动端适配 ───────────────────────────────────────── */
+        @media (max-width: 767px) {
+            .login-card {
+                max-width: 100%;
+                padding: 24px 18px;
+                border-radius: 0 !important;
+                margin: 0;
+            }
+            .aimunc-content {
+                padding: 0;
+                display: flex;
+                align-items: stretch;
+            }
+
+            /* ── 以下为 #040 Task 4c 新增：手机端触控友好 ── */
+
+            /* 输入框加高：触控友好，最小 48px（Apple HIG 推荐 44px）*/
+            .login-card .form-control,
+            .login-card .form-select {
+                padding: 14px 16px !important;
+                font-size: 1rem !important;
+                min-height: 48px;
+            }
+
+            /* 标签字号提升 */
+            .login-card .form-label,
+            .login-card label {
+                font-size: 0.9rem !important;
+            }
+
+            /* 提交按钮加高 */
+            .login-card button[type="submit"] {
+                padding: 16px !important;
+                font-size: 1.05rem !important;
+                min-height: 52px;
+            }
+
+            /* 字段提示文字 */
+            .login-card .field-hint {
+                font-size: 0.82rem !important;
+            }
+
+            /* 信息条（Task 4b）移动端字号 */
+            #accountStatusBar {
+                font-size: 0.88rem !important;
+                padding: 12px 16px !important;
+            }
+
+            /* 卡片标题 */
+            .login-card h3 {
+                font-size: 1.4rem !important;
+            }
+        }
+
+        @media (min-width: 768px) {
+            .aimunc-content {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 40px 16px;
+            }
+        }
+
+        /* ── 主题切换按钮：固定左下角，与 index/guide 页统一 ── */
+        #aimunc-theme-toggle {
+            position: fixed !important;
+            bottom: 24px !important;
+            left: 24px !important;
+            right: auto !important;
+            top: auto !important;
+            z-index: 9999 !important;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 【#040 Task 4a · Step B】背景层：CSS 网格兜底 + Chen-Lee canvas 容器 -->
+<!-- .aimunc-bg 保留为空 div（CSS 网格 + 光晕作为 Chen-Lee 加载前兜底） -->
+<div class="aimunc-bg"></div>
+<!-- Chen-Lee 背景板容器（由 chen-lee-bg.js 在内部创建 canvas + overlay） -->
+<div class="aimunc-bg-chenlee" id="chenlee-bg"></div>
+
+<!-- Toast -->
+<div id="lockToast">🔒 向导已为您锁定身份，如需更改请返回首页重新选择</div>
+
+<!-- 页面内容层 -->
+<div class="aimunc-content">
+    <div class="aimunc-card login-card aimunc-form">
+
+        <!-- 意图横幅 -->
+        <div id="intentBanner" class="intent-banner" style="display:none;">
+            <div class="d-flex align-items-start">
+                <span class="intent-icon">⚡</span>
+                <div>
+                    <strong id="intentTitle">快速向导直达模式</strong>
+                    <span id="intentDesc">登录成功后将自动跳转到目标页面</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 【R3】标题 -->
+        <h3 class="text-center mb-2">AIMUNC 2026</h3>
+        <p class="text-center mb-4 page-subtitle" id="pageSubtitle" style="color: var(--accent, #38bdf8); font-weight: 500;">未注册的账号将自动注册，输入用户名系统将自动检测</p>
+
+        <form id="loginForm">
+            <!-- 【C2】身份选择 Toggle（移至最顶部） -->
+            <div class="mb-3">
+                <label class="form-label fw-bold small">您的身份</label>
+                <!-- 隐藏的 select，保持所有后端/逻辑读取不变 -->
+                <select name="role" id="roleSelect" style="display:none;">
+                    <option value="DELEGATE">个人代表 (Delegate)</option>
+                    <option value="LEADER">代表团领队 (Leader)</option>
+                </select>
+
+                <div class="role-toggle-wrap" id="roleToggleWrap">
+                    <div class="role-toggle-slider" id="roleToggleSlider"></div>
+                    <button type="button" class="role-tab" id="roleTabDelegate"
+                            onclick="setRoleToggle('DELEGATE')">
+                        代表 <span class="role-tab-sub">Delegate</span>
+                    </button>
+                    <button type="button" class="role-tab" id="roleTabLeader"
+                            onclick="setRoleToggle('LEADER')">
+                        领队 <span class="role-tab-sub">Leader</span>
+                    </button>
+                    <!-- 向导锁定时覆盖整个 toggle -->
+                    <div class="role-lock-overlay" id="roleLockOverlay" style="display:none;"></div>
+                </div>
+                <div class="role-lock-hint" id="roleLockHint" style="display:none;">
+                    🔒 身份已由向导指定 &nbsp;·&nbsp;
+                    如需更改请 <a href="javascript:void(0)" onclick="clearWizardAndGoHome()">返回首页</a> 重新选择路线
+                </div>
+            </div>
+
+            <!-- 用户名 -->
+            <div class="mb-3">
+                <label class="form-label fw-bold small">用户名</label>
+                <input type="text" name="username" id="usernameInput" class="form-control"
+                       required placeholder="请输入账户名"
+                       autocomplete="username" oninput="debouncedValidateUsername(this)" onblur="validateUsername(this)">
+                <div class="field-hint" id="usernameHint">仅支持英文字母与数字，不含空格或中文</div>
+                <!-- 【#040 Task 4b · B1】探针状态信息条 -->
+                <div id="accountStatusBar" style="display:none; margin-top:8px; padding:10px 14px; border-radius:8px; font-size:0.82rem; line-height:1.5; transition: all 0.3s ease;"></div>
+            </div>
+
+            <!-- 密码 -->
+            <div class="mb-3">
+                <label class="form-label fw-bold small">访问密码</label>
+                <input type="password" name="password_hash" id="pwdInput" class="form-control"
+                       required placeholder="请输入密码"
+                       autocomplete="new-password" oninput="debouncedValidatePassword()" onblur="validatePassword()">
+                <div class="field-hint" id="pwdHint">至少6位，须包含大写字母、小写字母和数字</div>
+            </div>
+
+            <!-- 确认密码（注册模式展开） -->
+            <div class="mb-3" id="confirmPwdGroup" style="display:none; overflow:hidden; transition:all 0.3s ease;">
+                <label class="form-label fw-bold small">确认密码</label>
+                <input type="password" id="confirmPwdInput" class="form-control"
+                       placeholder="请再次输入密码"
+                       autocomplete="new-password" oninput="debouncedValidateConfirm()" onblur="validateConfirm()">
+                <div class="field-hint" id="confirmHint">请再次输入相同密码</div>
+            </div>
+
+            <button type="submit" class="btn-login mt-2">立即进入系统</button>
+            <div class="text-center mt-3" style="position:relative;">
+                <a href="javascript:void(0)" onclick="clearWizardAndGoHome()" class="back-link">← 返回门户首页</a>
+                <a href="javascript:void(0)" onclick="document.getElementById('forgotPwdModal').style.display='flex'" class="back-link" style="position:absolute;right:0;bottom:0;opacity:.45;font-size:.8rem;">忘记密码？</a>
+            </div>
+        </form>
+
+        <div id="statusMsg" class="mt-3 text-center" style="display:none;"></div>
+
+        <!-- 错误卡片 -->
+        <div id="errorBox" class="error-box" style="display:none;">
+            <div class="eb-title" id="errorTitle"></div>
+            <div class="eb-desc"  id="errorDesc"></div>
+            <div class="eb-actions" id="errorActions"></div>
+        </div>
+    </div>
+</div>
+
+<!-- 【#040 Task 4b · B2】跨角色独立提示 Modal
+     触发条件：当前角色下账号不存在(exists=false) + 另一角色下同名账号已存在
+     用途：告知用户两个角色的账号完全独立，密码可不同，数据互不影响 -->
+<div class="modal fade" id="crossRoleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+        <div class="modal-content" style="background:var(--bg-card-solid);border:1px solid var(--border);border-radius:16px;">
+            <div class="modal-body" style="padding:28px 24px;text-align:center;">
+                <div style="font-size:2rem;margin-bottom:12px;">🔀</div>
+                <h5 style="color:var(--text-heading);font-weight:700;margin-bottom:10px;">账号独立提醒</h5>
+                <p id="crossRoleMsg" style="color:var(--text-secondary);font-size:0.88rem;line-height:1.7;"></p>
+                <button type="button" class="btn btn-primary w-100" data-bs-dismiss="modal"
+                        style="margin-top:16px;padding:12px;border-radius:8px;font-weight:600;background:var(--accent);border:none;">
+                    我知道了，继续注册
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 【#040 Task 4b】Bootstrap JS Bundle — crossRoleModal 依赖 -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<!-- 主题 JS（最后加载，注入切换按钮） -->
+<script src="aimunc-theme.js"></script>
+<script src="aimunc-session.js"></script>
+<script>
+    /* 主题图标补写：MutationObserver 确保按钮注入后立刻写入图标 */
+    (function() {
+        function applyIcon() {
+            var btn = document.getElementById('aimunc-theme-toggle');
+            if (!btn) return false;
+            if (!btn.textContent.trim()) {
+                var theme = document.documentElement.getAttribute('data-theme') || 'dark';
+                btn.textContent = theme === 'dark' ? '🌙' : '☀️';
+            }
+            return true;
+        }
+        if (applyIcon()) return;
+        var obs = new MutationObserver(function() {
+            if (applyIcon()) obs.disconnect();
+        });
+        obs.observe(document.documentElement, { childList: true, subtree: true });
+        setTimeout(function() { applyIcon(); obs.disconnect(); }, 300);
+    })();
+</script>
+
+<!-- 【#040 Task 4a · Step C】Chen-Lee 背景板初始化 -->
+<script src="chen-lee-bg.js"></script>
+<script>
+    (function() {
+        var bg = window.aimuncBgInit('chenlee-bg');
+        if (bg) window._aimuncBg = bg;
+    })();
+</script>
+
+<script>
+    // ════════════════════════════════════════════════════════════════
+    // 以下所有业务逻辑与原版完全一致，未做任何改动（除 R4 debounce 包裹）
+    // ════════════════════════════════════════════════════════════════
+
+    // 【R4】debounce 工具函数：用户停止输入 delay ms 后才触发校验
+    function debounce(fn, delay) {
+        var timer;
+        return function() {
+            var args = arguments;
+            clearTimeout(timer);
+            timer = setTimeout(function() { fn.apply(null, args); }, delay);
+        };
+    }
+
+    // 【R4】debounced 版本：输入过程中不触发，停止 600ms 后自动校验
+    var debouncedValidateUsername = debounce(function(el) {
+        validateUsername(el || document.getElementById('usernameInput'));
+    }, 600);
+
+    var debouncedValidatePassword = debounce(function() {
+        validatePassword();
+        // 密码变化时，如果确认框有内容，也顺带校验
+        if (document.getElementById('confirmPwdInput').value) validateConfirm();
+    }, 600);
+
+    var debouncedValidateConfirm = debounce(function() {
+        validateConfirm();
+    }, 600);
+
+    // ── C2: Role Toggle 控制函数 ────────────────────────────
+    function setRoleToggle(role) {
+        const wrap = document.getElementById('roleToggleWrap');
+        const sel  = document.getElementById('roleSelect');
+        if (wrap.classList.contains('locked')) return; // 锁定时忽略点击
+        sel.value = role;
+        wrap.classList.toggle('delegate', role === 'DELEGATE');
+        wrap.classList.toggle('leader',   role === 'LEADER');
+        probeUserExists(); // 切换身份时重新探针
+    }
+
+    function initRoleToggle(role) {
+        const wrap = document.getElementById('roleToggleWrap');
+        wrap.classList.toggle('delegate', role === 'DELEGATE');
+        wrap.classList.toggle('leader',   role === 'LEADER');
+    }
+
+    let isRegistrationMode = false;
+    let _probeTimer        = null;
+
+    function validateUsername(el) {
+        const hint = document.getElementById('usernameHint');
+        const val  = el.value;
+        if (!val) {
+            el.classList.remove('is-invalid-custom', 'is-valid-custom');
+            hint.className = 'field-hint'; hint.textContent = '账户名为6-13位，由字母与数字组成，且至少各含1位';
+            return false;
+        }
+        if (/[^a-zA-Z0-9]/.test(val)) {
+            el.classList.add('is-invalid-custom'); el.classList.remove('is-valid-custom');
+            hint.className = 'field-hint err'; hint.textContent = '❌ 不支持中文、空格或特殊符号，只允许字母和数字';
+            return false;
+        }
+        if (val.length < 6 || val.length > 13) {
+            el.classList.add('is-invalid-custom'); el.classList.remove('is-valid-custom');
+            const tip = val.length < 6 ? '太短，还差 ' + (6 - val.length) + ' 位' : '太长，超出 ' + (val.length - 13) + ' 位';
+            hint.className = 'field-hint err'; hint.textContent = '❌ 账户名须为6-13位（当前 ' + val.length + ' 位，' + tip + '）';
+            return false;
+        }
+        if (!/[a-zA-Z]/.test(val)) {
+            el.classList.add('is-invalid-custom'); el.classList.remove('is-valid-custom');
+            hint.className = 'field-hint err'; hint.textContent = '❌ 必须包含至少1个字母';
+            return false;
+        }
+        if (!/[0-9]/.test(val)) {
+            el.classList.add('is-invalid-custom'); el.classList.remove('is-valid-custom');
+            hint.className = 'field-hint err'; hint.textContent = '❌ 必须包含至少1个数字';
+            return false;
+        }
+        el.classList.add('is-valid-custom'); el.classList.remove('is-invalid-custom');
+        hint.className = 'field-hint ok'; hint.textContent = '✅ 账户名格式正确';
+        return true;
+    }
+
+    function validatePassword() {
+        const el   = document.getElementById('pwdInput');
+        const hint = document.getElementById('pwdHint');
+        const val  = el ? el.value : '';
+        if (!val) {
+            if (el) el.classList.remove('is-invalid-custom', 'is-valid-custom');
+            hint.className = 'field-hint'; hint.textContent = '至少6位，须包含大写字母、小写字母和数字';
+            return false;
+        }
+        const hasUpper = /[A-Z]/.test(val), hasLower = /[a-z]/.test(val),
+            hasDigit = /[0-9]/.test(val), hasLength = val.length >= 6;
+        const missing = [];
+        if (!hasLength) missing.push('长度不足6位');
+        if (!hasUpper)  missing.push('缺少大写字母');
+        if (!hasLower)  missing.push('缺少小写字母');
+        if (!hasDigit)  missing.push('缺少数字');
+        if (missing.length) {
+            el.classList.add('is-invalid-custom'); el.classList.remove('is-valid-custom');
+            hint.className = 'field-hint err'; hint.textContent = '❌ ' + missing.join(' · ');
+            return false;
+        }
+        el.classList.add('is-valid-custom'); el.classList.remove('is-invalid-custom');
+        hint.className = 'field-hint ok'; hint.textContent = '✅ 密码强度合格';
+        return true;
+    }
+
+    function validateConfirm() {
+        const confirmEl = document.getElementById('confirmPwdInput');
+        const hint      = document.getElementById('confirmHint');
+        if (!isRegistrationMode || confirmEl.parentElement.style.display === 'none') return true;
+        const pwd = document.getElementById('pwdInput') ? document.getElementById('pwdInput').value : '';
+        const confirm = confirmEl.value;
+        if (!confirm) {
+            confirmEl.classList.remove('is-invalid-custom', 'is-valid-custom');
+            hint.className = 'field-hint'; hint.textContent = '请再次输入相同密码';
+            return false;
+        }
+        if (pwd !== confirm) {
+            confirmEl.classList.add('is-invalid-custom'); confirmEl.classList.remove('is-valid-custom');
+            hint.className = 'field-hint err'; hint.textContent = '❌ 两次输入的密码不匹配';
+            return false;
+        }
+        confirmEl.classList.add('is-valid-custom'); confirmEl.classList.remove('is-invalid-custom');
+        hint.className = 'field-hint ok'; hint.textContent = '✅ 密码一致';
+        return true;
+    }
+
+    function runAllValidations() {
+        const u = validateUsername(document.getElementById('usernameInput'));
+        const p = validatePassword();
+        const isDashboard = localStorage.getItem('mun_intent_role') === 'LEADER_DASHBOARD';
+        const c = (!isDashboard && isRegistrationMode) ? validateConfirm() : true;
+        return u && p && c;
+    }
+
+    function enterRegistrationMode() {
+        isRegistrationMode = true;
+        const group = document.getElementById('confirmPwdGroup');
+        group.style.display = 'block';
+        const btn = document.querySelector('#loginForm button[type="submit"]');
+        if (btn) btn.textContent = '完成注册并进入';
+        const subtitle = document.getElementById('pageSubtitle');
+        if (subtitle && !subtitle.dataset.wizardSet) {
+            subtitle.textContent = '检测到新账号，请设置安全凭据';
+        }
+    }
+
+    function enterLoginMode() {
+        isRegistrationMode = false;
+        const group = document.getElementById('confirmPwdGroup');
+        group.style.display = 'none';
+        const confirmEl = document.getElementById('confirmPwdInput');
+        if (confirmEl) {
+            confirmEl.value = '';
+            confirmEl.classList.remove('is-invalid-custom', 'is-valid-custom');
+            document.getElementById('confirmHint').className = 'field-hint';
+            document.getElementById('confirmHint').textContent = '请再次输入相同密码';
+        }
+        const btn = document.querySelector('#loginForm button[type="submit"]');
+        if (btn) btn.textContent = '验证身份并登录';
+        const subtitle = document.getElementById('pageSubtitle');
+        if (subtitle && !subtitle.dataset.wizardSet) {
+            subtitle.textContent = '欢迎回来，请输入密码登录';
+        }
+    }
+
+    function resetProbeMode() {
+        isRegistrationMode = false;
+        const group = document.getElementById('confirmPwdGroup');
+        group.style.display = 'none';
+        const btn = document.querySelector('#loginForm button[type="submit"]');
+        if (btn) btn.textContent = '立即进入系统';
+        const subtitle = document.getElementById('pageSubtitle');
+        if (subtitle && !subtitle.dataset.wizardSet) {
+            subtitle.textContent = '未注册的账号将自动注册，输入用户名系统将自动检测';
+        }
+        // 【#040 Task 4b】用户名无效/清空时隐藏探针状态信息条
+        const asb = document.getElementById('accountStatusBar');
+        if (asb) asb.style.display = 'none';
+    }
+
+    async function probeUserExists() {
+        const usernameEl  = document.getElementById('usernameInput');
+        const roleEl      = document.getElementById('roleSelect');
+        const username    = usernameEl.value.trim();
+        const role        = roleEl.value;
+        const intentRole  = localStorage.getItem('mun_intent_role');
+        const isDashboard = intentRole === 'LEADER_DASHBOARD';
+        // 【#040 Task 4b · B1】探针状态信息条引用
+        const accountStatusBar = document.getElementById('accountStatusBar');
+
+        if (!validateUsername(usernameEl)) {
+            resetProbeMode();
+            return;
+        }
+
+        try {
+            const res = await fetch(
+                '/api/users/exists?username=' + encodeURIComponent(username) +
+                '&role=' + encodeURIComponent(role)
+            );
+            if (!res.ok) return;
+
+            const data = await res.json();
+
+            if (isDashboard) {
+                enterLoginMode();
+                if (!data.exists) {
+                    const subtitle = document.getElementById('pageSubtitle');
+                    subtitle.style.color  = 'var(--danger)';
+                    subtitle.textContent  = '⚠️ 系统未检索到此领队账号，请仔细核对，或返回首页前往注册';
+                    // 【#040 Task 4b · B1】LEADER_DASHBOARD 模式下也显示信息条
+                    if (accountStatusBar) {
+                        accountStatusBar.style.display = 'block';
+                        accountStatusBar.style.background = 'rgba(0,180,255,0.08)';
+                        accountStatusBar.style.border = '1px solid rgba(0,180,255,0.25)';
+                        accountStatusBar.style.color = 'var(--accent)';
+                        accountStatusBar.innerHTML = '🆕 该账号尚未注册，提交后将自动为您创建';
+                    }
+                } else {
+                    const subtitle = document.getElementById('pageSubtitle');
+                    subtitle.style.color  = 'var(--accent, #38bdf8)';
+                    subtitle.textContent  = '请输入您已注册的领队账号';
+                    // 【#040 Task 4b · B1】已存在 → 绿色信息条
+                    if (accountStatusBar) {
+                        accountStatusBar.style.display = 'block';
+                        accountStatusBar.style.background = 'rgba(6,214,160,0.08)';
+                        accountStatusBar.style.border = '1px solid rgba(6,214,160,0.25)';
+                        accountStatusBar.style.color = 'var(--success)';
+                        accountStatusBar.innerHTML = '✅ 账号已存在，请输入密码登录';
+                    }
+                }
+                return;
+            }
+
+            if (data.exists) {
+                enterLoginMode();
+                // 【#040 Task 4b · B1】已存在 → 绿色信息条
+                if (accountStatusBar) {
+                    accountStatusBar.style.display = 'block';
+                    accountStatusBar.style.background = 'rgba(6,214,160,0.08)';
+                    accountStatusBar.style.border = '1px solid rgba(6,214,160,0.25)';
+                    accountStatusBar.style.color = 'var(--success)';
+                    accountStatusBar.innerHTML = '✅ 账号已存在，请输入密码登录';
+                }
+            } else {
+                enterRegistrationMode();
+                // 【#040 Task 4b · B1】不存在 → 蓝色信息条
+                if (accountStatusBar) {
+                    accountStatusBar.style.display = 'block';
+                    accountStatusBar.style.background = 'rgba(0,180,255,0.08)';
+                    accountStatusBar.style.border = '1px solid rgba(0,180,255,0.25)';
+                    accountStatusBar.style.color = 'var(--accent)';
+                    accountStatusBar.innerHTML = '🆕 该账号尚未注册，提交后将自动为您创建';
+                }
+
+                // 【#040 Task 4b · B2】跨角色探测：当前角色不存在时，检查另一角色是否有同名账号
+                // 仅在非 ADMIN 角色时触发，静默失败不阻断主流程
+                if (role !== 'ADMIN') {
+                    var otherRole = role === 'LEADER' ? 'DELEGATE' : 'LEADER';
+                    var otherRoleText = otherRole === 'LEADER' ? '领队(LEADER)' : '代表(DELEGATE)';
+                    var currentRoleText = role === 'LEADER' ? '领队(LEADER)' : '代表(DELEGATE)';
+                    fetch('/api/users/exists?username=' + encodeURIComponent(username) + '&role=' + otherRole)
+                        .then(function(r) { return r.json(); })
+                        .then(function(d) {
+                            if (d.exists) {
+                                showCrossRoleWarning(currentRoleText, otherRoleText);
+                            }
+                        })
+                        .catch(function() {}); // 静默，不阻断主流程
+                }
+            }
+        } catch (e) {
+            // 网络故障静默失败
+        }
+    }
+
+    function schedulePrbe() {
+        clearTimeout(_probeTimer);
+        _probeTimer = setTimeout(probeUserExists, 500);
+    }
+
+    let _toastTimer = null;
+    function showLockToast() {
+        const t = document.getElementById('lockToast');
+        t.classList.add('show');
+        clearTimeout(_toastTimer);
+        _toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+    }
+
+    /**
+     * 【#040 Task 4b · B2】跨角色独立提示
+     * 弹出 Modal 告知用户：另一角色下已有同名账号，但两者完全独立。
+     * 仅在 probeUserExists() 的 exists=false + 非 ADMIN 分支中触发。
+     */
+    function showCrossRoleWarning(currentRoleText, otherRoleText) {
+        document.getElementById('crossRoleMsg').innerHTML =
+            '该用户名已有一个 <strong>' + otherRoleText + '</strong> 账号。<br><br>' +
+            '您即将注册的 <strong>' + currentRoleText + '</strong> 账号与其<strong>完全独立</strong>——密码可以不同，数据互不影响。';
+        new bootstrap.Modal(document.getElementById('crossRoleModal')).show();
+    }
+
+    function showErrorBox(title, desc, actionsHTML) {
+        document.getElementById('loginForm').style.display  = 'none';
+        document.getElementById('statusMsg').style.display  = 'none';
+        document.getElementById('errorTitle').innerHTML     = title;
+        document.getElementById('errorDesc').innerHTML      = desc;
+        document.getElementById('errorActions').innerHTML   = actionsHTML;
+        document.getElementById('errorBox').style.display   = 'block';
+    }
+
+    window.switchToRegisterMode = function () {
+        localStorage.setItem('mun_intent',      'WIZARD_DIRECT');
+        localStorage.setItem('mun_intent_role', 'LEADER_BUILD');
+
+        document.getElementById('errorBox').style.display   = 'none';
+        document.getElementById('loginForm').style.display  = 'block';
+        document.getElementById('statusMsg').style.display  = 'none';
+
+        document.getElementById('intentTitle').innerText = '⚡ 向导直达：建团模式';
+        document.getElementById('intentDesc').innerText  = '注册成功后将直接跳转到【创建代表团】页面';
+        document.getElementById('pageSubtitle').innerText = '未注册的账号将自动注册，输入用户名系统将自动检测';
+        document.querySelector('input[name="password_hash"]').value = '';
+
+        resetProbeMode();
+    };
+
+    function clearWizardAndGoHome() {
+        localStorage.removeItem('mun_intent');
+        localStorage.removeItem('mun_intent_role');
+        window.location.href = 'index.html';
+    }
+
+    window.onload = function () {
+        const intent     = localStorage.getItem('mun_intent');
+        const intentRole = localStorage.getItem('mun_intent_role');
+
+        if (intent === 'WIZARD_DIRECT' && intentRole) {
+            document.getElementById('intentBanner').style.display = 'block';
+
+            if (intentRole === 'LEADER_DASHBOARD') {
+                const subtitle = document.getElementById('pageSubtitle');
+                subtitle.textContent = '请输入您已注册的领队账号';
+                subtitle.dataset.wizardSet = '1';
+            }
+
+            const roleSelect = document.getElementById('roleSelect');
+            let lockedRole = 'DELEGATE';
+
+            if (intentRole === 'LEADER_BUILD') {
+                lockedRole = 'LEADER'; roleSelect.value = 'LEADER';
+                document.getElementById('intentTitle').innerText = '⚡ 向导直达：建团模式';
+                document.getElementById('intentDesc').innerText  = '登录成功后将直接跳转到【创建代表团】页面';
+            } else if (intentRole === 'DELEGATE_APPLY') {
+                lockedRole = 'DELEGATE'; roleSelect.value = 'DELEGATE';
+                document.getElementById('intentTitle').innerText = '⚡ 向导直达：报名模式';
+                document.getElementById('intentDesc').innerText  = '登录成功后将直接跳转到【代表报名表】页面';
+            } else if (intentRole === 'LEADER_DASHBOARD') {
+                lockedRole = 'LEADER'; roleSelect.value = 'LEADER';
+                document.getElementById('intentTitle').innerText = '⚡ 向导直达：控制台模式';
+                document.getElementById('intentDesc').innerText  = '登录成功后将直接跳转到【领队控制台】页面';
+            }
+
+            // 【C2-D】向导锁定：改为操作 roleToggleWrap
+            const wrap = document.getElementById('roleToggleWrap');
+            wrap.classList.add('locked');
+            document.getElementById('roleLockOverlay').style.display = 'block';
+            document.getElementById('roleLockHint').style.display    = 'block';
+            document.getElementById('roleLockOverlay').addEventListener('click', showLockToast);
+        }
+
+        const usernameInput = document.getElementById('usernameInput');
+        const roleSelect    = document.getElementById('roleSelect');
+        usernameInput.addEventListener('input', schedulePrbe);
+        roleSelect.addEventListener('change', function () { probeUserExists(); });
+        document.getElementById('pwdInput').addEventListener('input', function () {
+            validatePassword();
+            if (isRegistrationMode) validateConfirm();
+        });
+
+        // 【C2-E】初始化 Toggle 滑块位置（向导可能已设置 roleSelect.value）
+        initRoleToggle(document.getElementById('roleSelect').value || 'DELEGATE');
+    };
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        if (!runAllValidations()) {
+            const msg = document.getElementById('statusMsg');
+            msg.style.display = 'block';
+            msg.className = 'alert alert-warning py-2';
+            msg.innerText = '⚠️ 请修正上方标红的输入项后再提交';
+            return;
+        }
+
+        const data = Object.fromEntries(new FormData(e.target).entries());
+        delete data.confirm_password;
+        const msg = document.getElementById('statusMsg');
+
+        msg.style.display = 'block';
+        msg.className = 'alert alert-info py-2';
+        msg.innerText = '正在验证身份...';
+
+        try {
+            const response = await fetch('/api/users/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                throw new Error(response.status === 401 ? '密码错误，请重试' : '认证失败，请检查用户名和密码');
+            }
+
+            const result = await response.json();
+
+            const _savedIntentRole = localStorage.getItem('mun_intent_role');
+
+            if (_savedIntentRole === 'LEADER_DASHBOARD' &&
+                (result.isNewUser || !result.delegationId)) {
+
+                if (result.isNewUser) {
+                    await fetch(`/api/users/${result.id}`, {
+                        method: 'DELETE',
+                        headers: { 'Authorization': 'Bearer ' + result.token }
+                    }).catch(() => {});
+                }
+
+                if (result.isNewUser) {
+                    showErrorBox(
+                        '⚠️ 该账号不存在',
+                        '控制台向导需要使用<strong>已注册的领队账号</strong>。<br>' +
+                        '您输入的用户名在系统中没有记录。<br><br>请选择：',
+                        '<button class="eb-btn-primary" onclick="switchToRegisterMode()">📝 我是新领队，去注册</button>' +
+                        '<a href="javascript:void(0)" onclick="clearWizardAndGoHome()" class="eb-btn-ghost">← 返回首页</a>'
+                    );
+                } else {
+                    showErrorBox(
+                        '⚠️ 该领队尚未创建代表团',
+                        '您的账号已验证，但还没有代表团，无法进入控制台。<br>' +
+                        '请先创建代表团，获取邀请码后，控制台将自动开放。',
+                        '<a href="create_delegation.html" class="eb-btn-primary">🏗️ 立即创建代表团</a>' +
+                        '<a href="javascript:void(0)" onclick="clearWizardAndGoHome()" class="eb-btn-ghost">← 返回首页</a>'
+                    );
+                    MunSession.clearAuth();
+                    MunSession.set('mun_jwt',      result.token);
+                    MunSession.set('mun_user_id',  result.id);
+                    MunSession.set('mun_username', result.username);
+                    MunSession.set('mun_role',     result.role);
+                }
+                return;
+            }
+
+            const _savedIntent = localStorage.getItem('mun_intent');
+            // 主题偏好必须在 clear() 前保存，否则跨页时主题被重置为默认 dark
+            const _savedTheme       = localStorage.getItem('aimunc_theme');
+            const _savedThemeLegacy = localStorage.getItem('mun_theme');
+            localStorage.clear();
+
+            if (_savedIntent)       localStorage.setItem('mun_intent',      _savedIntent);
+            if (_savedIntentRole)   localStorage.setItem('mun_intent_role', _savedIntentRole);
+            if (_savedTheme)        localStorage.setItem('aimunc_theme',     _savedTheme);
+            if (_savedThemeLegacy)  localStorage.setItem('mun_theme',        _savedThemeLegacy);
+
+            MunSession.clearAuth();
+            MunSession.set('mun_jwt',      result.token);
+            MunSession.set('mun_user_id',  result.id);
+            MunSession.set('mun_username', result.username);
+            MunSession.set('mun_role',     result.role);
+
+            if (result.role === 'LEADER' && result.delegationId) {
+                MunSession.set('mun_my_delegation_id', result.delegationId);
+                MunSession.set('mun_my_invite_code',   result.inviteCode);
+            }
+
+            msg.className = 'alert alert-success py-2';
+            msg.innerHTML = `✅ 认证成功！欢迎，${result.username}`;
+
+            setTimeout(() => {
+                const intent     = localStorage.getItem('mun_intent');
+                const intentRole = localStorage.getItem('mun_intent_role');
+                localStorage.removeItem('mun_intent');
+                localStorage.removeItem('mun_intent_role');
+
+                if (intent === 'WIZARD_DIRECT') {
+                    if (intentRole === 'LEADER_BUILD') {
+                        window.location.href = result.delegationId ? 'dashboard.html' : 'create_delegation.html';
+                    } else if (intentRole === 'DELEGATE_APPLY') {
+                        window.location.href = 'apply.html';
+                    } else if (intentRole === 'LEADER_DASHBOARD') {
+                        window.location.href = 'dashboard.html';
+                    } else {
+                        window.location.href = 'index.html';
+                    }
+                } else {
+                    window.location.href = 'index.html';
+                }
+            }, 1000);
+
+        } catch (error) {
+            msg.className = 'alert alert-danger py-2';
+            msg.innerText = '❌ ' + error.message;
+        }
+    });
+</script>
+
+<!-- ── 忘记密码弹窗 ── -->
+<div id="forgotPwdModal" onclick="if(event.target===this)this.style.display='none'"
+     style="display:none;position:fixed;inset:0;z-index:9999;
+            background:rgba(0,0,0,.45);backdrop-filter:blur(4px);
+            align-items:center;justify-content:center;">
+    <div style="background:#fff;border-radius:18px;padding:36px 40px 28px;
+                max-width:420px;width:90%;box-shadow:0 24px 64px rgba(0,0,0,.18);
+                position:relative;text-align:center;animation:fpIn .22s ease;">
+        <button onclick="document.getElementById('forgotPwdModal').style.display='none'"
+                style="position:absolute;top:14px;right:16px;background:none;border:none;
+                       font-size:1.3rem;cursor:pointer;color:#aaa;line-height:1;">✕</button>
+        <div style="font-size:2rem;margin-bottom:12px;">🔑</div>
+        <h5 style="font-weight:700;color:#0d1a3a;margin-bottom:8px;">找回密码</h5>
+        <p style="color:#555;font-size:.92rem;line-height:1.7;margin-bottom:20px;">
+            展示仓库已移除真实联系方式。<br>
+            实际部署时请通过会务组公布的官方渠道联系。
+        </p>
+        <button onclick="document.getElementById('forgotPwdModal').style.display='none'"
+                style="background:#1a73e8;color:#fff;border:none;border-radius:10px;
+                       padding:10px 32px;font-size:.92rem;font-weight:600;cursor:pointer;
+                       transition:background .2s;"
+                onmouseover="this.style.background='#1558b0'"
+                onmouseout="this.style.background='#1a73e8'">
+            我知道了
+        </button>
+    </div>
+</div>
+<style>
+    @keyframes fpIn {
+        from { opacity:0; transform:scale(.93) translateY(10px); }
+        to   { opacity:1; transform:scale(1)  translateY(0); }
+    }
+</style>
+</body>
+</html>

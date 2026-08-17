@@ -24,4 +24,4 @@ The source package used to reconstruct this repository contained database and JW
 
 ## Reporting
 
-Because the repository is initially private, report suspected security or privacy issues through a private GitHub issue or directly to the repository owner. Do not include real participant data in the report.
+Do not post participant data, credentials, or deployment details in a public issue. Use GitHub's private vulnerability-reporting channel when available, or contact the repository owner through the account profile without including sensitive values in the first message.
